@@ -1,6 +1,9 @@
 'use client'
 
 import { useState } from 'react'
+import dynamic from 'next/dynamic'
+
+const FlagModal = dynamic(() => import('@/components/dashboard/FlagModal'), { ssr: false })
 
 const MAX = 500
 
@@ -8,6 +11,9 @@ export default function SendForm({ username }: { username: string }) {
   const [content, setContent] = useState('')
   const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'error' | 'rate-limit'>('idle')
   const [errorMsg, setErrorMsg] = useState('')
+  const [sentMessageId, setSentMessageId] = useState<number | null>(null)
+  const [showFlag, setShowFlag] = useState(false)
+  const [flagDone, setFlagDone] = useState(false)
 
   const remaining = MAX - content.length
   const canSend = content.trim().length > 0 && content.length <= MAX && status !== 'sending'
@@ -23,11 +29,7 @@ export default function SendForm({ username }: { username: string }) {
         body: JSON.stringify({ recipientUsername: username, content }),
       })
 
-      if (res.status === 429) {
-        setStatus('rate-limit')
-        return
-      }
-
+      if (res.status === 429) { setStatus('rate-limit'); return }
       if (!res.ok) {
         const data = await res.json()
         setErrorMsg(data.error || 'Something went wrong')
@@ -35,6 +37,8 @@ export default function SendForm({ username }: { username: string }) {
         return
       }
 
+      const data = await res.json()
+      setSentMessageId(data.messageId ?? null)
       setStatus('success')
       setContent('')
     } catch {
@@ -45,51 +49,50 @@ export default function SendForm({ username }: { username: string }) {
 
   if (status === 'success') {
     return (
-      <div
-        className="flex flex-col items-center gap-3 py-10 rounded-xl"
-        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-      >
-        <div
-          className="w-12 h-12 rounded-full flex items-center justify-center"
-          style={{ background: 'var(--accent-dim)' }}
-        >
-          <span style={{ color: 'var(--accent)', fontSize: 22 }}>✓</span>
+      <>
+        <div className="flex flex-col items-center gap-3 py-10 rounded-xl"
+          style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <div className="w-12 h-12 rounded-full flex items-center justify-center"
+            style={{ background: 'var(--accent-dim)' }}>
+            <span style={{ color: 'var(--accent)', fontSize: 22 }}>✓</span>
+          </div>
+          <p className="font-semibold" style={{ fontFamily: 'var(--font-syne)', color: 'var(--text)' }}>Message sent!</p>
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>They won&apos;t know it was you.</p>
+          <div className="flex items-center gap-3 mt-1">
+            <button onClick={() => setStatus('idle')} className="text-sm hover:opacity-80 transition-opacity" style={{ color: 'var(--accent)' }}>
+              Send another →
+            </button>
+            {sentMessageId && !flagDone && (
+              <button onClick={() => setShowFlag(true)} className="text-xs hover:opacity-80 transition-opacity" style={{ color: 'var(--text-disabled)' }}>
+                Sent by mistake? Flag it
+              </button>
+            )}
+            {flagDone && (
+              <span className="text-xs" style={{ color: 'var(--text-disabled)' }}>Flagged for review</span>
+            )}
+          </div>
         </div>
-        <p className="font-semibold text-[--text]" style={{ fontFamily: 'var(--font-syne)' }}>
-          Message sent!
-        </p>
-        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-          They won&apos;t know it was you.
-        </p>
-        <button
-          onClick={() => setStatus('idle')}
-          className="text-sm mt-1 hover:opacity-80 transition-opacity"
-          style={{ color: 'var(--accent)' }}
-        >
-          Send another →
-        </button>
-      </div>
+
+        {showFlag && sentMessageId && (
+          <FlagModal
+            messageId={sentMessageId}
+            flaggedBy="sender"
+            onClose={() => setShowFlag(false)}
+            onSuccess={() => { setShowFlag(false); setFlagDone(true) }}
+          />
+        )}
+      </>
     )
   }
 
   if (status === 'rate-limit') {
     return (
-      <div
-        className="flex flex-col items-center gap-3 py-10 rounded-xl text-center px-6"
-        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-      >
+      <div className="flex flex-col items-center gap-3 py-10 rounded-xl text-center px-6"
+        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
         <span className="text-2xl">⏳</span>
-        <p className="font-semibold text-[--text]" style={{ fontFamily: 'var(--font-syne)' }}>
-          Slow down
-        </p>
-        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-          You&apos;ve sent too many messages. Please wait a few minutes.
-        </p>
-        <button
-          onClick={() => setStatus('idle')}
-          className="text-sm mt-1 hover:opacity-80 transition-opacity"
-          style={{ color: 'var(--warning)' }}
-        >
+        <p className="font-semibold" style={{ fontFamily: 'var(--font-syne)', color: 'var(--text)' }}>Slow down</p>
+        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>You&apos;ve sent too many messages. Please wait a few minutes.</p>
+        <button onClick={() => setStatus('idle')} className="text-sm mt-1 hover:opacity-80 transition-opacity" style={{ color: 'var(--warning)' }}>
           Try again
         </button>
       </div>
@@ -97,20 +100,10 @@ export default function SendForm({ username }: { username: string }) {
   }
 
   return (
-    <div
-      className="rounded-xl p-6"
-      style={{
-        background: 'var(--surface)',
-        border: '1px solid var(--border)',
-        boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
-      }}
-    >
+    <div className="rounded-xl p-6" style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 4px 16px rgba(0,0,0,0.5)' }}>
       <textarea
         value={content}
-        onChange={(e) => {
-          setContent(e.target.value)
-          if (status === 'error') setStatus('idle')
-        }}
+        onChange={(e) => { setContent(e.target.value); if (status === 'error') setStatus('idle') }}
         maxLength={MAX}
         rows={5}
         placeholder="Write something anonymous..."
@@ -121,36 +114,19 @@ export default function SendForm({ username }: { username: string }) {
           color: 'var(--text)',
           caretColor: 'var(--accent)',
         }}
-        onFocus={(e) => {
-          if (status !== 'error') {
-            e.target.style.borderColor = 'var(--accent)'
-          }
-        }}
-        onBlur={(e) => {
-          if (status !== 'error') {
-            e.target.style.borderColor = 'var(--border)'
-          }
-        }}
+        onFocus={(e) => { if (status !== 'error') e.target.style.borderColor = 'var(--accent)' }}
+        onBlur={(e) => { if (status !== 'error') e.target.style.borderColor = 'var(--border)' }}
         disabled={status === 'sending'}
       />
 
       {status === 'error' && (
-        <p className="text-xs mt-1.5 mb-2" style={{ color: 'var(--destructive)' }}>
-          {errorMsg}
-        </p>
+        <p className="text-xs mt-1.5 mb-2" style={{ color: 'var(--destructive)' }}>{errorMsg}</p>
       )}
 
       <div className="flex items-center justify-between mt-3">
-        <span
-          className="text-xs"
-          style={{
-            fontFamily: 'var(--font-mono, monospace)',
-            color: remaining < 50 ? 'var(--warning)' : 'var(--text-muted)',
-          }}
-        >
+        <span className="text-xs" style={{ fontFamily: 'monospace', color: remaining < 50 ? 'var(--warning)' : 'var(--text-muted)' }}>
           {remaining}/500
         </span>
-
         <button
           onClick={handleSend}
           disabled={!canSend}

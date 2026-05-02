@@ -64,11 +64,11 @@ export async function POST(req: NextRequest) {
     }
 
     // Insert message — no sender info stored
-    await db.insert(messages).values({
+    const [inserted] = await db.insert(messages).values({
       recipientId: recipient.id,
       content: trimmed,
       isRead: false,
-    })
+    }).returning({ id: messages.id })
 
     // Optional email notification
     if (recipient.emailNotifications && recipient.email) {
@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
       }).catch(() => {}) // fire and forget
     }
 
-    return NextResponse.json({ ok: true })
+    return NextResponse.json({ ok: true, messageId: inserted?.id ?? null })
   } catch (err) {
     console.error('[POST /api/messages]', err)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
