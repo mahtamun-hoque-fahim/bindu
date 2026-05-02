@@ -11,7 +11,6 @@ type UserRow = {
   email: string | null
   isBanned: boolean
   bannedReason: string | null
-  role: string
   createdAt: string | Date
   messageCount: number
 }
@@ -111,16 +110,14 @@ export default function AdminUsersClient({ initialUsers }: { initialUsers: UserR
                   {timeAgo(u.createdAt)}
                 </td>
                 <td className="px-4 py-3">
-                  {u.role === 'admin' ? (
-                    <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'var(--accent-dim)', color: 'var(--accent)' }}>admin</span>
-                  ) : u.isBanned ? (
+                  {u.isBanned ? (
                     <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'rgba(255,68,68,0.1)', color: 'var(--destructive)' }}>banned</span>
                   ) : (
                     <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'var(--surface-elevated)', color: 'var(--text-muted)' }}>active</span>
                   )}
                 </td>
                 <td className="px-4 py-3">
-                  {u.role !== 'admin' && (
+                  {(
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => toggleBan(u)}

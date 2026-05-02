@@ -2,17 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { eq, and } from 'drizzle-orm'
 import { getDb } from '@/lib/db'
 import { messages, flags } from '@/lib/db/schema'
-import { auth } from '@clerk/nextjs/server'
-import { getRatelimit } from '@/lib/rate-limit'
-
-export const runtime = 'edge'
+import { auth } from '@/auth'
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
     const { messageId, flaggedBy, reason, note } = body
 
-    // Validate
     if (!messageId || !flaggedBy || !reason) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
@@ -26,9 +22,9 @@ export async function POST(req: NextRequest) {
     const db = getDb()
     if (!db) return NextResponse.json({ error: 'DB unavailable' }, { status: 503 })
 
-    // If recipient flagging — must be authenticated and own the message
     if (flaggedBy === 'recipient') {
-      const { userId } = await auth()
+      const session = await auth()
+      const userId = session?.user?.id
       if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
       const [msg] = await db
@@ -39,31 +35,13 @@ export async function POST(req: NextRequest) {
 
       if (!msg) return NextResponse.json({ error: 'Message not found' }, { status: 404 })
     } else {
-      // Sender flagging — rate limit by IP, message must exist
-      const ip =
-        req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-        req.headers.get('x-real-ip') ||
-        'anonymous'
-
-      const [msg] = await db
-        .select()
-        .from(messages)
-        .where(eq(messages.id, messageId))
-        .limit(1)
-
+      const [msg] = await db.select().from(messages).where(eq(messages.id, messageId)).limit(1)
       if (!msg) return NextResponse.json({ error: 'Message not found' }, { status: 404 })
     }
 
-    // Insert flag (ignore duplicate)
     await db
       .insert(flags)
-      .values({
-        messageId,
-        flaggedBy,
-        reason,
-        note: note || null,
-        status: 'pending',
-      })
+      .values({ messageId, flaggedBy, reason, note: note || null, status: 'pending' })
       .onConflictDoNothing()
 
     return NextResponse.json({ ok: true })

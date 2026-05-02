@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
+import { auth } from '@/auth'
 import { eq, and } from 'drizzle-orm'
 import { getDb } from '@/lib/db'
 import { messages, users } from '@/lib/db/schema'
@@ -7,7 +7,8 @@ import { messages, users } from '@/lib/db/schema'
 export const runtime = 'edge'
 
 async function getAuthenticatedUserId() {
-  const { userId } = await auth()
+  const session = await auth()
+  const userId = session?.user?.id
   return userId
 }
 

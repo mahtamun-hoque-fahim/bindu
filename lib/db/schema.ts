@@ -5,8 +5,11 @@ import {
   timestamp,
   serial,
   pgEnum,
+  integer,
+  primaryKey,
 } from 'drizzle-orm/pg-core'
 import { relations } from 'drizzle-orm'
+import type { AdapterAccountType } from 'next-auth/adapters'
 
 // ─── Enums ────────────────────────────────────────────────────────────────────
 
@@ -25,21 +28,73 @@ export const flagStatusEnum = pgEnum('flag_status', [
   'dismissed',
 ])
 
-// ─── Tables ───────────────────────────────────────────────────────────────────
+// ─── NextAuth required tables ─────────────────────────────────────────────────
 
 export const users = pgTable('users', {
-  id: text('id').primaryKey(), // Clerk userId
-  username: text('username').notNull().unique(),
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  name: text('name'),
+  email: text('email').unique(),
+  emailVerified: timestamp('email_verified', { mode: 'date' }),
+  image: text('image'),
+  password: text('password'), // null for OAuth users
+  // App-specific
+  username: text('username').unique(),
   displayName: text('display_name'),
-  email: text('email'),
   emailNotifications: boolean('email_notifications').default(true),
-  // Admin / moderation
   isBanned: boolean('is_banned').default(false).notNull(),
   bannedAt: timestamp('banned_at'),
   bannedReason: text('banned_reason'),
-  // Clerk role stored here for quick lookup (synced from publicMetadata)
-  role: text('role').default('user').notNull(), // 'user' | 'admin'
   createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
+export const accounts = pgTable(
+  'accounts',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    type: text('type').$type<AdapterAccountType>().notNull(),
+    provider: text('provider').notNull(),
+    providerAccountId: text('provider_account_id').notNull(),
+    refresh_token: text('refresh_token'),
+    access_token: text('access_token'),
+    expires_at: integer('expires_at'),
+    token_type: text('token_type'),
+    scope: text('scope'),
+    id_token: text('id_token'),
+    session_state: text('session_state'),
+  },
+  (t) => [primaryKey({ columns: [t.provider, t.providerAccountId] })]
+)
+
+export const sessions = pgTable('sessions', {
+  sessionToken: text('session_token').primaryKey(),
+  userId: text('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  expires: timestamp('expires', { mode: 'date' }).notNull(),
+})
+
+export const verificationTokens = pgTable(
+  'verification_tokens',
+  {
+    identifier: text('identifier').notNull(),
+    token: text('token').notNull(),
+    expires: timestamp('expires', { mode: 'date' }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.identifier, t.token] })]
+)
+
+// ─── App tables ───────────────────────────────────────────────────────────────
+
+export const admins = pgTable('admins', {
+  userId: text('user_id')
+    .primaryKey()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  grantedAt: timestamp('granted_at').defaultNow().notNull(),
+  grantedBy: text('granted_by'), // userId of who granted it
 })
 
 export const messages = pgTable('messages', {
@@ -47,24 +102,23 @@ export const messages = pgTable('messages', {
   recipientId: text('recipient_id')
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
-  content: text('content').notNull(), // max 500 chars
+  content: text('content').notNull(),
   isRead: boolean('is_read').default(false).notNull(),
-  // Moderation
-  isDeleted: boolean('is_deleted').default(false).notNull(), // soft delete
-  deletedBy: text('deleted_by'), // 'admin' | 'recipient'
+  isDeleted: boolean('is_deleted').default(false).notNull(),
+  deletedBy: text('deleted_by'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 
 export const flags = pgTable('flags', {
   id: serial('id').primaryKey(),
-  messageId: serial('message_id')
+  messageId: integer('message_id')
     .notNull()
     .references(() => messages.id, { onDelete: 'cascade' }),
   flaggedBy: flaggedByEnum('flagged_by').notNull(),
   reason: flagReasonEnum('reason').notNull(),
-  note: text('note'), // optional extra context
+  note: text('note'),
   status: flagStatusEnum('status').default('pending').notNull(),
-  resolvedBy: text('resolved_by'), // admin userId
+  resolvedBy: text('resolved_by'),
   resolvedAt: timestamp('resolved_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
@@ -73,7 +127,7 @@ export const bannedIps = pgTable('banned_ips', {
   id: serial('id').primaryKey(),
   ip: text('ip').notNull().unique(),
   reason: text('reason'),
-  bannedBy: text('banned_by').notNull(), // admin userId
+  bannedBy: text('banned_by').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 
@@ -84,18 +138,12 @@ export const usersRelations = relations(users, ({ many }) => ({
 }))
 
 export const messagesRelations = relations(messages, ({ one, many }) => ({
-  recipient: one(users, {
-    fields: [messages.recipientId],
-    references: [users.id],
-  }),
+  recipient: one(users, { fields: [messages.recipientId], references: [users.id] }),
   flags: many(flags),
 }))
 
 export const flagsRelations = relations(flags, ({ one }) => ({
-  message: one(messages, {
-    fields: [flags.messageId],
-    references: [messages.id],
-  }),
+  message: one(messages, { fields: [flags.messageId], references: [messages.id] }),
 }))
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -105,5 +153,5 @@ export type NewUser = typeof users.$inferInsert
 export type Message = typeof messages.$inferSelect
 export type NewMessage = typeof messages.$inferInsert
 export type Flag = typeof flags.$inferSelect
-export type NewFlag = typeof flags.$inferInsert
 export type BannedIp = typeof bannedIps.$inferSelect
+export type Admin = typeof admins.$inferSelect

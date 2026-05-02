@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { SignOutButton } from '@clerk/nextjs'
+import { signOut } from 'next-auth/react'
 
 const navItems = [
   { href: '/admin', label: 'Overview', exact: true },
@@ -57,11 +57,9 @@ export default function AdminNav() {
           <Link href="/dashboard" className="text-xs px-3 py-1.5 transition-colors" style={{ color: 'var(--text-disabled)' }}>
             ← User dashboard
           </Link>
-          <SignOutButton>
-            <button className="text-xs text-left px-3 py-1.5 transition-colors" style={{ color: 'var(--text-muted)' }}>
+          <button className="text-xs text-left px-3 py-1.5 transition-colors" style={{ color: 'var(--text-muted)' }} onClick={() => signOut({ callbackUrl: "/" })}>
               Sign out
             </button>
-          </SignOutButton>
         </div>
       </aside>
 

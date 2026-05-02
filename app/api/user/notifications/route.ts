@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
 import { eq } from 'drizzle-orm'
 import { getDb } from '@/lib/db'
 import { users } from '@/lib/db/schema'
-
-export const runtime = 'edge'
+import { auth } from '@/auth'
 
 export async function PATCH(req: NextRequest) {
-  const { userId } = await auth()
+  const session = await auth()
+  const userId = session?.user?.id
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { emailNotifications } = await req.json()
@@ -18,10 +17,6 @@ export async function PATCH(req: NextRequest) {
   const db = getDb()
   if (!db) return NextResponse.json({ error: 'DB unavailable' }, { status: 503 })
 
-  await db
-    .update(users)
-    .set({ emailNotifications })
-    .where(eq(users.id, userId))
-
+  await db.update(users).set({ emailNotifications }).where(eq(users.id, userId))
   return NextResponse.json({ ok: true })
 }

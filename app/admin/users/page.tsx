@@ -21,7 +21,6 @@ export default async function AdminUsersPage() {
           email: users.email,
           isBanned: users.isBanned,
           bannedReason: users.bannedReason,
-          role: users.role,
           createdAt: users.createdAt,
           messageCount: count(messages.id),
         })

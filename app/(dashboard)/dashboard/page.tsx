@@ -1,4 +1,4 @@
-import { auth } from '@clerk/nextjs/server'
+import { auth } from '@/auth'
 import { redirect } from 'next/navigation'
 import { eq, desc } from 'drizzle-orm'
 import { getDb } from '@/lib/db'
@@ -6,22 +6,19 @@ import { messages } from '@/lib/db/schema'
 import InboxList from '@/components/dashboard/InboxList'
 import type { Metadata } from 'next'
 
-export const metadata: Metadata = {
-  title: 'Inbox — Bindu',
-}
-
+export const metadata: Metadata = { title: 'Inbox — Bindu' }
 export const dynamic = 'force-dynamic'
 
 export default async function DashboardPage() {
-  const { userId } = await auth()
-  if (!userId) redirect('/sign-in')
+  const session = await auth()
+  if (!session?.user?.id) redirect('/sign-in')
 
   const db = getDb()
   const allMessages = db
     ? await db
         .select()
         .from(messages)
-        .where(eq(messages.recipientId, userId))
+        .where(eq(messages.recipientId, session.user.id))
         .orderBy(desc(messages.createdAt))
     : []
 
@@ -30,17 +27,9 @@ export default async function DashboardPage() {
   return (
     <div className="max-w-2xl mx-auto px-6 py-10">
       <div className="flex items-center gap-3 mb-8">
-        <h1
-          className="text-2xl font-bold"
-          style={{ fontFamily: 'var(--font-syne)', color: 'var(--text)' }}
-        >
-          Inbox
-        </h1>
+        <h1 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-syne)', color: 'var(--text)' }}>Inbox</h1>
         {unreadCount > 0 && (
-          <span
-            className="text-xs font-semibold px-2 py-0.5 rounded-full min-w-[22px] text-center"
-            style={{ background: 'var(--accent)', color: '#000' }}
-          >
+          <span className="text-xs font-semibold px-2 py-0.5 rounded-full min-w-[22px] text-center" style={{ background: 'var(--accent)', color: '#000' }}>
             {unreadCount}
           </span>
         )}
@@ -48,7 +37,6 @@ export default async function DashboardPage() {
           {allMessages.length} {allMessages.length === 1 ? 'message' : 'messages'}
         </span>
       </div>
-
       <InboxList messages={allMessages} />
     </div>
   )

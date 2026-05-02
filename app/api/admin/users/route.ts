@@ -26,7 +26,6 @@ export async function GET(req: NextRequest) {
       displayName: users.displayName,
       email: users.email,
       isBanned: users.isBanned,
-      role: users.role,
       createdAt: users.createdAt,
       messageCount: count(messages.id),
     })
@@ -45,8 +44,7 @@ export async function GET(req: NextRequest) {
           displayName: users.displayName,
           email: users.email,
           isBanned: users.isBanned,
-          role: users.role,
-          createdAt: users.createdAt,
+              createdAt: users.createdAt,
           messageCount: count(messages.id),
         })
         .from(users)
