@@ -1,30 +1,29 @@
-# Bindu
+# Bindu (বিন্দু)
 
-Anonymous messaging — share your link, receive messages from anyone.
+Anonymous messaging — share a link, receive messages from anyone. No account needed to send.
 
 ---
 
 ## Stack
 
-- Next.js 16 App Router (TypeScript 6)
-- Tailwind CSS 4
-- Neon (PostgreSQL) + Drizzle ORM 0.45
-- `@clerk/nextjs` 7
-- `@upstash/redis` 1.37 + `@upstash/ratelimit` 2.0
-- Resend 6
-- `@vercel/og` 0.11
-- Vercel
+- Next.js 16.2.4 App Router (TypeScript)
+- Tailwind CSS 4.2.4
+- Neon (PostgreSQL) + Drizzle ORM 0.45.2
+- NextAuth v5 beta — Credentials + Google OAuth
+- Upstash Redis (rate limiting)
+- Resend (optional email notifications)
+- @vercel/og (dynamic OG images)
+- Vercel (deployment)
 
 ---
 
 ## Prerequisites
 
-- Node.js 18+
-- pnpm (or npm)
+- Node.js 20+
+- npm
 - Neon account + database
-- Clerk account + app
-- Upstash Redis database
-- Resend account (optional — for email notifications)
+- Google Cloud project (OAuth credentials)
+- Upstash account + Redis database
 
 ---
 
@@ -36,17 +35,17 @@ git clone https://github.com/mahtamun-hoque-fahim/bindu.git
 cd bindu
 
 # 2. Install
-pnpm install
+npm install
 
 # 3. Env
 cp .env.example .env.local
-# Fill in values — see Env Vars below
+# Fill in all values — see Env Vars below
 
 # 4. Push DB schema
-pnpm db:push
+npx drizzle-kit push
 
 # 5. Run
-pnpm dev
+npm run dev
 ```
 
 ---
@@ -54,26 +53,17 @@ pnpm dev
 ## Env Vars
 
 ```env
-# Database
 DATABASE_URL=
 DATABASE_URL_UNPOOLED=
-
-# App
 NEXT_PUBLIC_APP_URL=
 
-# Clerk
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
-CLERK_SECRET_KEY=
-NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
-NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
-NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/dashboard
-NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/dashboard
+AUTH_SECRET=
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
 
-# Upstash Redis
 UPSTASH_REDIS_REST_URL=
 UPSTASH_REDIS_REST_TOKEN=
 
-# Resend (optional)
 RESEND_API_KEY=
 RESEND_FROM_EMAIL=
 ```
@@ -85,23 +75,35 @@ Full descriptions → `PLANNER.md` → Env Vars section.
 ## Commands
 
 ```bash
-pnpm dev          # Start dev server (localhost:3000)
-pnpm build        # Production build
-pnpm start        # Start production server
-pnpm db:push      # Push Drizzle schema to Neon
-pnpm db:generate  # Generate migration files
-pnpm db:studio    # Open Drizzle Studio
-pnpm lint         # Run ESLint
+npm run dev          # Dev server (localhost:3000)
+npm run build        # Production build
+npm run start        # Production server
+npx drizzle-kit push # Push schema to Neon (uses DATABASE_URL_UNPOOLED)
+npx drizzle-kit studio # Drizzle Studio GUI
+npm run lint         # ESLint
 ```
+
+---
+
+## First Admin
+
+After first deploy, insert your admin row directly in Neon:
+
+```sql
+INSERT INTO admins (user_id, granted_by) VALUES ('your-user-id', null);
+```
+
+Get your user ID from the `users` table after signing up.
 
 ---
 
 ## Deploy
 
-Deployed on Vercel. Pushes to `main` auto-deploy.
+Deployed on Vercel. Push to `main` → auto-deploy.
 
-```bash
-vercel --prod
+Google OAuth redirect URI to add:
+```
+https://bindu.app/api/auth/callback/google
 ```
 
 ---
@@ -110,10 +112,10 @@ vercel --prod
 
 ```
 app/          # Pages, layouts, API routes
-components/   # UI components (ui/, send/, dashboard/)
-lib/          # DB client, schema, rate-limit, utils
-public/       # Static assets
-drizzle/      # Generated migration files
+components/   # UI components (auth, dashboard, admin, send)
+lib/          # DB client, utils, admin-auth, rate-limit, resend
+auth.ts       # NextAuth v5 config
+middleware.ts # Route protection
 ```
 
 Full architecture → `PLANNER.md`.

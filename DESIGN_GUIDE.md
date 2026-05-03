@@ -1,7 +1,7 @@
 # DESIGN_GUIDE.md — Bindu
 
-> Living design system reference. Updated when new components or tokens are added.
-> Last updated: 2026-04-29
+> Living design system reference.
+> Last updated: 2026-05-03
 
 ---
 
@@ -10,92 +10,62 @@
 | Token | CSS Variable | Hex | Usage |
 |---|---|---|---|
 | Background | `--bg` | `#0a0a0a` | Page background |
-| Surface | `--surface` | `#111111` | Cards, send form, message cards |
-| Surface Elevated | `--surface-elevated` | `#1a1a1a` | Hover states, nested panels |
-| Border | `--border` | `#1f1f1f` | Dividers, input outlines, card borders |
-| Accent | `--accent` | `#00e676` | Send button, active states, unread dot |
-| Accent Dim | `--accent-dim` | `#00e67615` | Accent background fills, hover |
-| Text Primary | `--text` | `#f5f5f5` | Body text, message content |
-| Text Muted | `--text-muted` | `#888888` | Timestamps, captions, placeholders |
-| Text Disabled | `--text-disabled` | `#444444` | Disabled inputs |
-| Destructive | `--destructive` | `#ff4444` | Delete button, error states |
-| Success | `--success` | `#00e676` | Message sent confirmation |
-| Warning | `--warning` | `#ffaa00` | Rate limit warning |
-
-### globals.css
-
-```css
-:root {
-  --bg: #0a0a0a;
-  --surface: #111111;
-  --surface-elevated: #1a1a1a;
-  --border: #1f1f1f;
-  --accent: #00e676;
-  --accent-dim: #00e67615;
-  --text: #f5f5f5;
-  --text-muted: #888888;
-  --text-disabled: #444444;
-  --destructive: #ff4444;
-  --success: #00e676;
-  --warning: #ffaa00;
-}
-
-body {
-  background-color: var(--bg);
-  color: var(--text);
-}
-```
+| Surface | `--surface` | `#111111` | Cards, panels, sidebar |
+| Surface Elevated | `--surface-elevated` | `#1a1a1a` | Inputs, nested cards |
+| Border | `--border` | `#1f1f1f` | Dividers, outlines |
+| Accent | `--accent` | `#00e676` | CTAs, active states, links |
+| Accent Dim | `--accent-dim` | `rgba(0,230,118,0.08)` | Accent backgrounds, nav active fill |
+| Text | `--text` | `#f5f5f5` | Primary body text |
+| Text Muted | `--text-muted` | `#888888` | Labels, captions, nav items |
+| Text Disabled | `--text-disabled` | `#444444` | Disabled states, watermarks |
+| Destructive | `--destructive` | `#ff4444` | Errors, delete actions, banned states |
+| Warning | `--warning` | `#ffaa00` | Flag actions, rate limit, spam badges |
 
 ---
 
 ## Typography
 
 **Font Stack:**
-- Headings: `Syne` — weights 600, 700
-- Body: `Onest` — weights 400, 500
-- Mono: `JetBrains Mono` — weight 400
+- Headings: `Syne` — weights 400, 600, 700 (CSS var: `--font-syne`)
+- Body: `Onest` — weights 400, 500, 600 (CSS var: `--font-onest`)
 
-**Scale:**
+Both loaded via `next/font/google` in root layout. Applied as CSS variables on `<html>`.
 
-| Name | Size | Line Height | Weight | Font | Usage |
-|---|---|---|---|---|---|
-| `display` | 3rem (48px) | 1.1 | 700 | Syne | Landing hero |
-| `h1` | 2rem (32px) | 1.2 | 700 | Syne | Page title (send page, dashboard) |
-| `h2` | 1.5rem (24px) | 1.25 | 600 | Syne | Section headings |
-| `h3` | 1.125rem (18px) | 1.3 | 600 | Syne | Card headings |
-| `body` | 1rem (16px) | 1.6 | 400 | Onest | Message content, default text |
-| `small` | 0.875rem (14px) | 1.5 | 400 | Onest | Timestamps, labels |
-| `xs` | 0.75rem (12px) | 1.4 | 400 | Onest | Badges, character count |
-| `mono` | 0.875rem (14px) | 1.6 | 400 | JetBrains Mono | Share link display |
+**Scale (used in practice):**
+
+| Usage | Size | Weight | Font |
+|---|---|---|---|
+| Hero heading | `text-5xl` (48px) | 700 | Syne |
+| Page title (h1) | `text-2xl` (24px) | 700 | Syne |
+| Section heading (h2) | `text-sm` + semibold | 600 | Syne |
+| Body | `text-sm` (14px) | 400 | Onest |
+| Label / caption | `text-xs` (12px) | 400–500 | Onest |
+| Monospace (URLs, usernames) | `font-mono` system | 400 | System mono |
 
 ---
 
-## Spacing Scale
+## Spacing
 
-Standard Tailwind scale. Key values for this project:
+Tailwind defaults. Common patterns in this project:
 
-| Token | Value | Usage |
-|---|---|---|
-| `space-2` | 8px | Icon + label gaps |
-| `space-3` | 12px | Compact inner padding |
-| `space-4` | 16px | Default card padding |
-| `space-6` | 24px | Section padding |
-| `space-8` | 32px | Between sections |
-| `space-12` | 48px | Page vertical rhythm |
-| `space-16` | 64px | Hero spacing |
+- Page padding: `px-6 py-10`
+- Card padding: `p-4` or `p-5`
+- Input padding: `px-3 py-2.5`
+- Gap between form fields: `gap-3`
+- Section gap: `mb-8`
+- Nav padding: `px-5 py-6`
 
 ---
 
 ## Border Radius
 
-| Token | Value | Usage |
-|---|---|---|
-| `rounded-sm` | 4px | Tags, unread dots |
-| `rounded` | 6px | Buttons |
-| `rounded-md` | 8px | Inputs, message cards |
-| `rounded-lg` | 12px | Send form panel, dashboard cards |
-| `rounded-xl` | 16px | Send page container |
-| `rounded-full` | 9999px | Avatar circle, character count pill |
+| Usage | Class |
+|---|---|
+| Buttons, inputs | `rounded` or `rounded-md` |
+| Cards, panels | `rounded-lg` |
+| Send form, modals | `rounded-xl` |
+| Avatars, pills, unread dot | `rounded-full` |
+| Badges, tags | `rounded` or `rounded-full` |
 
 ---
 
@@ -103,133 +73,143 @@ Standard Tailwind scale. Key values for this project:
 
 | Name | Value | Usage |
 |---|---|---|
-| `shadow-sm` | `0 1px 3px rgba(0,0,0,0.4)` | Subtle lift on hover |
-| `shadow-md` | `0 4px 16px rgba(0,0,0,0.5)` | Send form panel |
-| `shadow-accent` | `0 0 24px rgba(0,230,118,0.12)` | Send button glow |
-| `shadow-destructive` | `0 0 16px rgba(255,68,68,0.12)` | Delete button hover |
+| Accent glow | `0 0 24px rgba(0,230,118,0.15)` | Primary CTA button |
+| Card elevation | `0 4px 16px rgba(0,0,0,0.5)` | Send form card |
+| Modal overlay | `0 8px 40px rgba(0,0,0,0.6)` | FlagModal |
 
 ---
 
 ## Component Patterns
 
-### SendForm (core component)
-
+### Button — Primary (accent)
 ```tsx
-// app/u/[username]/SendForm.tsx
-// The main anonymous message form
-<div className="bg-[--surface] border border-[--border] rounded-xl p-6 shadow-md">
-  <textarea
-    className="w-full bg-[--surface-elevated] border border-[--border] rounded-md p-3
-      text-[--text] placeholder:text-[--text-muted] resize-none
-      focus:outline-none focus:border-[--accent] focus:ring-1 focus:ring-[--accent]/30
-      transition-colors text-sm leading-relaxed"
-    rows={5}
-    maxLength={500}
-    placeholder="Write something anonymous..."
-  />
-  {/* Character count */}
-  <span className="text-xs text-[--text-muted] font-mono">{count}/500</span>
-  {/* Send button */}
-  <button className="bg-[--accent] text-black font-semibold px-6 py-2.5 rounded
-    hover:opacity-90 active:scale-95 transition-all
-    shadow-[0_0_24px_rgba(0,230,118,0.12)]
-    disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none">
-    Send →
-  </button>
-</div>
+<button
+  className="font-semibold text-sm px-5 py-2 rounded transition-all active:scale-95"
+  style={{ background: 'var(--accent)', color: '#000', boxShadow: '0 0 20px rgba(0,230,118,0.15)' }}
+>
+  Label →
+</button>
 ```
 
-### MessageCard (inbox item)
-
+### Button — Destructive
 ```tsx
-// Unread
-<div className="bg-[--surface] border border-[--border] rounded-lg p-4
-  hover:border-[--accent]/20 transition-colors group relative">
-  {/* Unread indicator */}
-  <span className="absolute top-4 right-4 w-2 h-2 rounded-full bg-[--accent]" />
-  <p className="text-[--text] text-sm leading-relaxed">{content}</p>
-  <span className="text-xs text-[--text-muted] mt-2 block">{timeAgo}</span>
-</div>
-
-// Read
-<div className="bg-[--surface] border border-[--border] rounded-lg p-4
-  hover:border-[--border]/60 transition-colors opacity-70">
-  ...
-</div>
-```
-
-### Button Variants
-
-```tsx
-// Primary — Send
-<button className="bg-[--accent] text-black font-semibold px-5 py-2.5 rounded
-  hover:opacity-90 active:scale-95 transition-all">
-  Label
-</button>
-
-// Ghost
-<button className="border border-[--border] text-[--text-muted] px-4 py-2 rounded
-  hover:bg-[--surface-elevated] hover:text-[--text] transition-colors text-sm">
-  Label
-</button>
-
-// Destructive (icon + text)
-<button className="flex items-center gap-1.5 text-[--destructive] text-sm px-3 py-1.5 rounded
-  hover:bg-[--destructive]/10 transition-colors opacity-0 group-hover:opacity-100">
+<button
+  className="text-xs px-2.5 py-1 rounded transition-colors"
+  style={{ color: 'var(--destructive)' }}
+  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,68,68,0.1)'}
+  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+>
   Delete
 </button>
 ```
 
-### Input
-
+### Button — Ghost (muted)
 ```tsx
-<input className="bg-[--surface] border border-[--border] text-[--text] rounded-md px-3 py-2 w-full
-  placeholder:text-[--text-muted]
-  focus:outline-none focus:border-[--accent] focus:ring-1 focus:ring-[--accent]/20
-  transition-colors text-sm" />
+<button
+  className="text-sm px-3 py-2 rounded transition-colors"
+  style={{ color: 'var(--text-muted)' }}
+  onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--surface-elevated)'; e.currentTarget.style.color = 'var(--text)' }}
+  onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)' }}
+>
+  Label
+</button>
 ```
 
-### Unread Badge (dashboard nav)
-
+### Input / Textarea
 ```tsx
-<span className="text-xs font-medium px-1.5 py-0.5 rounded-full bg-[--accent] text-black min-w-[18px] text-center">
-  {count}
+<input
+  className="w-full rounded-md px-3 py-2.5 text-sm outline-none transition-colors"
+  style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)', color: 'var(--text)' }}
+  onFocus={(e) => e.target.style.borderColor = 'var(--accent)'}
+  onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
+/>
+```
+
+### Card
+```tsx
+<div
+  className="rounded-lg p-5"
+  style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+>
+```
+
+### Badge — Accent
+```tsx
+<span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'var(--accent-dim)', color: 'var(--accent)' }}>
+  label
 </span>
 ```
 
-### Share Link Display
-
+### Badge — Destructive
 ```tsx
-<div className="flex items-center gap-2 bg-[--surface-elevated] border border-[--border] rounded-md px-3 py-2">
-  <span className="font-mono text-sm text-[--text-muted] flex-1 truncate">
-    bindu.app/u/fahim
-  </span>
-  <button className="text-xs text-[--accent] hover:opacity-80 transition-opacity font-medium shrink-0">
-    Copy
-  </button>
+<span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'rgba(255,68,68,0.1)', color: 'var(--destructive)' }}>
+  banned
+</span>
+```
+
+### Badge — Warning
+```tsx
+<span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'rgba(255,170,0,0.12)', color: 'var(--warning)' }}>
+  spam
+</span>
+```
+
+### Avatar (initial-based)
+```tsx
+<div
+  className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold"
+  style={{ background: 'var(--accent-dim)', border: '1px solid rgba(0,230,118,0.2)', color: 'var(--accent)', fontFamily: 'var(--font-syne)' }}
+>
+  {name.charAt(0).toUpperCase()}
 </div>
 ```
 
-### Success State (after send)
-
+### Unread Dot
 ```tsx
-<div className="flex flex-col items-center gap-3 py-8">
-  <div className="w-12 h-12 rounded-full bg-[--accent-dim] flex items-center justify-center">
-    <span className="text-[--accent] text-xl">✓</span>
-  </div>
-  <p className="text-[--text] font-medium">Message sent!</p>
-  <p className="text-sm text-[--text-muted]">They won't know it was you.</p>
-  <button className="text-sm text-[--accent] hover:opacity-80 mt-1">Send another</button>
-</div>
+<span className="absolute top-4 right-4 w-2 h-2 rounded-full" style={{ background: 'var(--accent)' }} />
 ```
 
-### Empty Inbox State
-
+### Nav Item (sidebar)
 ```tsx
-<div className="flex flex-col items-center gap-2 py-16 text-center">
-  <p className="text-[--text-muted] text-sm">No messages yet.</p>
-  <p className="text-xs text-[--text-disabled]">Share your link to start receiving.</p>
-</div>
+<Link
+  href={href}
+  className="text-sm px-3 py-2 rounded transition-colors"
+  style={{
+    color: isActive ? 'var(--accent)' : 'var(--text-muted)',
+    background: isActive ? 'var(--accent-dim)' : 'transparent',
+  }}
+>
+```
+
+### Modal Backdrop
+```tsx
+<div
+  className="fixed inset-0 z-50 flex items-center justify-center px-4"
+  style={{ background: 'rgba(0,0,0,0.7)' }}
+  onClick={(e) => e.target === e.currentTarget && onClose()}
+>
+  <div className="w-full max-w-sm rounded-xl p-6" style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 8px 40px rgba(0,0,0,0.6)' }}>
+```
+
+### Toggle (boolean switch)
+```tsx
+<button
+  onClick={toggle}
+  className="relative w-10 h-5 rounded-full transition-colors"
+  style={{ background: value ? 'var(--accent)' : 'var(--surface-elevated)', border: '1px solid var(--border)' }}
+>
+  <span className="absolute top-0.5 w-4 h-4 rounded-full transition-all"
+    style={{ background: value ? '#000' : 'var(--text-disabled)', left: value ? '20px' : '2px' }} />
+</button>
+```
+
+### Google OAuth Button
+```tsx
+<button className="w-full flex items-center justify-center gap-3 text-sm font-medium py-2.5 rounded-md"
+  style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)', color: 'var(--text)' }}
+>
+  <GoogleIcon /> Continue with Google
+</button>
 ```
 
 ---
@@ -238,12 +218,12 @@ Standard Tailwind scale. Key values for this project:
 
 | Usage | Class |
 |---|---|
-| Default hover/state | `transition-colors duration-150` |
-| Opacity transitions | `transition-opacity duration-150` |
-| Button press | `active:scale-95 transition-transform duration-75` |
-| All properties | `transition-all duration-200` |
+| Hover color changes | `transition-colors` |
+| Opacity hover | `transition-opacity hover:opacity-80` |
+| Button press | `active:scale-95 transition-all` |
+| Group reveal (message actions) | `opacity-0 group-hover:opacity-100 transition-opacity` |
 
-Keep motion minimal. No page transitions or heavy animations.
+No heavy animations. Motion is minimal and purposeful.
 
 ---
 
@@ -251,37 +231,6 @@ Keep motion minimal. No page transitions or heavy animations.
 
 - Dark-first. No light mode.
 - Background layers: `#0a0a0a` → `#111111` → `#1a1a1a`
-- Accent `#00e676` is the only color — used for CTA, unread indicator, success state
-- Never use pure black `#000000` — use `#0a0a0a` minimum
-- All interactive elements show a subtle `--accent` border on focus
-
----
-
-## Send Page Layout
-
-```
-[Full viewport]
-  ↓
-[Centered column — max-w-md]
-  ↓
-[Avatar placeholder + "Send [name] an anonymous message"]
-[SendForm card]
-[Powered by Bindu link]
-```
-
----
-
-## Dashboard Layout
-
-```
-[Sidebar — hidden on mobile]
-  - Logo
-  - Your link (copy button)
-  - Inbox (unread count badge)
-  - Settings
-  - Sign out
-
-[Main area]
-  - Inbox heading + message count
-  - Message cards list
-```
+- Never pure white. Max text brightness: `#f5f5f5`
+- Accent `#00e676` only on dark backgrounds
+- Scrollbar styled: 6px width, `var(--border)` thumb, `var(--bg)` track
