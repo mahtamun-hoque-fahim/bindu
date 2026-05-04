@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
+import { useRouter, usePathname } from 'next/navigation'
 import { timeAgo } from '@/lib/utils'
 
 type MsgRow = {
@@ -11,45 +12,49 @@ type MsgRow = {
   deletedBy: string | null
   createdAt: string | Date
   recipientUsername: string | null
-  recipientDisplayName: string | null
   flagCount: number
 }
 
-export default function AdminMessagesClient({ initialMessages }: { initialMessages: MsgRow[] }) {
+type Props = {
+  initialMessages: MsgRow[]
+  page: number
+  totalPages: number
+  filter: 'all' | 'flagged' | 'deleted'
+}
+
+export default function AdminMessagesClient({ initialMessages, page, totalPages, filter }: Props) {
+  const router = useRouter()
+  const pathname = usePathname()
   const [msgs, setMsgs] = useState(initialMessages)
-  const [search, setSearch] = useState('')
-  const [filter, setFilter] = useState<'all' | 'flagged' | 'deleted'>('all')
   const [loading, setLoading] = useState<number | null>(null)
+  const [search, setSearch] = useState('')
+  const [isPending, startTransition] = useTransition()
 
-  const filtered = msgs.filter((m) => {
-    const matchSearch =
-      !search ||
-      m.content.toLowerCase().includes(search.toLowerCase()) ||
-      m.recipientUsername?.toLowerCase().includes(search.toLowerCase())
-
-    const matchFilter =
-      filter === 'all'
-        ? true
-        : filter === 'flagged'
-        ? Number(m.flagCount) > 0
-        : m.isDeleted
-
-    return matchSearch && matchFilter
-  })
+  function navigate(params: { page?: number; filter?: string }) {
+    const sp = new URLSearchParams()
+    if (params.filter && params.filter !== 'all') sp.set('filter', params.filter)
+    if (params.page && params.page > 1) sp.set('page', String(params.page))
+    startTransition(() => router.push(`${pathname}?${sp.toString()}`))
+  }
 
   async function deleteMsg(id: number) {
     if (!confirm('Soft-delete this message?')) return
     setLoading(id)
     await fetch(`/api/admin/messages/${id}`, { method: 'DELETE' })
-    setMsgs((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, isDeleted: true, deletedBy: 'admin' } : m))
-    )
+    setMsgs((prev) => prev.map((m) => m.id === id ? { ...m, isDeleted: true, deletedBy: 'admin' } : m))
     setLoading(null)
   }
 
+  const visible = msgs.filter((m) => {
+    const matchSearch = !search ||
+      m.content.toLowerCase().includes(search.toLowerCase()) ||
+      m.recipientUsername?.toLowerCase().includes(search.toLowerCase())
+    const matchFilter = filter === 'flagged' ? Number(m.flagCount) > 0 : true
+    return matchSearch && matchFilter
+  })
+
   return (
     <div>
-      {/* Controls */}
       <div className="flex flex-wrap items-center gap-3 mb-5">
         <input
           type="text"
@@ -63,7 +68,7 @@ export default function AdminMessagesClient({ initialMessages }: { initialMessag
           {(['all', 'flagged', 'deleted'] as const).map((f) => (
             <button
               key={f}
-              onClick={() => setFilter(f)}
+              onClick={() => navigate({ filter: f, page: 1 })}
               className="text-xs px-3 py-1.5 rounded capitalize transition-colors"
               style={{
                 background: filter === f ? 'var(--accent-dim)' : 'var(--surface)',
@@ -77,73 +82,39 @@ export default function AdminMessagesClient({ initialMessages }: { initialMessag
         </div>
       </div>
 
-      <div className="rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+      <div className="rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)', opacity: isPending ? 0.6 : 1, transition: 'opacity 0.15s' }}>
         <table className="w-full text-sm">
           <thead>
             <tr style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}>
               {['Content', 'Recipient', 'Flags', 'Sent', 'Status', ''].map((h) => (
-                <th
-                  key={h}
-                  className="text-left px-4 py-3 text-xs font-medium"
-                  style={{ color: 'var(--text-muted)' }}
-                >
-                  {h}
-                </th>
+                <th key={h} className="text-left px-4 py-3 text-xs font-medium" style={{ color: 'var(--text-muted)' }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {filtered.map((m) => (
-              <tr
-                key={m.id}
-                style={{
-                  borderBottom: '1px solid var(--border)',
-                  opacity: m.isDeleted ? 0.45 : 1,
-                }}
-              >
+            {visible.map((m) => (
+              <tr key={m.id} style={{ borderBottom: '1px solid var(--border)', opacity: m.isDeleted ? 0.45 : 1 }}>
                 <td className="px-4 py-3 max-w-xs">
-                  <p
-                    className="text-sm leading-snug line-clamp-2"
-                    style={{ color: 'var(--text)' }}
-                  >
-                    {m.content}
-                  </p>
+                  <p className="text-sm leading-snug line-clamp-2" style={{ color: 'var(--text)' }}>{m.content}</p>
                 </td>
                 <td className="px-4 py-3">
-                  <span className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>
-                    @{m.recipientUsername || '—'}
-                  </span>
+                  <span className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>@{m.recipientUsername || '—'}</span>
                 </td>
                 <td className="px-4 py-3">
                   {Number(m.flagCount) > 0 ? (
-                    <span
-                      className="text-xs px-2 py-0.5 rounded-full font-medium"
-                      style={{ background: 'rgba(255,68,68,0.1)', color: 'var(--destructive)' }}
-                    >
+                    <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'rgba(255,68,68,0.1)', color: 'var(--destructive)' }}>
                       {m.flagCount}
                     </span>
-                  ) : (
-                    <span style={{ color: 'var(--text-disabled)' }}>—</span>
-                  )}
+                  ) : <span style={{ color: 'var(--text-disabled)' }}>—</span>}
                 </td>
-                <td className="px-4 py-3 text-xs" style={{ color: 'var(--text-muted)' }}>
-                  {timeAgo(m.createdAt)}
-                </td>
+                <td className="px-4 py-3 text-xs" style={{ color: 'var(--text-muted)' }}>{timeAgo(m.createdAt)}</td>
                 <td className="px-4 py-3">
                   {m.isDeleted ? (
-                    <span
-                      className="text-xs px-2 py-0.5 rounded-full"
-                      style={{ background: 'var(--surface-elevated)', color: 'var(--text-disabled)' }}
-                    >
+                    <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'var(--surface-elevated)', color: 'var(--text-disabled)' }}>
                       deleted by {m.deletedBy}
                     </span>
                   ) : (
-                    <span
-                      className="text-xs px-2 py-0.5 rounded-full"
-                      style={{ background: 'var(--surface-elevated)', color: 'var(--text-muted)' }}
-                    >
-                      active
-                    </span>
+                    <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'var(--surface-elevated)', color: 'var(--text-muted)' }}>active</span>
                   )}
                 </td>
                 <td className="px-4 py-3">
@@ -153,9 +124,7 @@ export default function AdminMessagesClient({ initialMessages }: { initialMessag
                       disabled={loading === m.id}
                       className="text-xs px-2.5 py-1 rounded transition-colors"
                       style={{ color: 'var(--destructive)' }}
-                      onMouseEnter={(e) =>
-                        (e.currentTarget.style.background = 'rgba(255,68,68,0.08)')
-                      }
+                      onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,68,68,0.08)')}
                       onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                     >
                       {loading === m.id ? '…' : 'Delete'}
@@ -164,20 +133,38 @@ export default function AdminMessagesClient({ initialMessages }: { initialMessag
                 </td>
               </tr>
             ))}
-            {filtered.length === 0 && (
+            {visible.length === 0 && (
               <tr>
-                <td
-                  colSpan={6}
-                  className="text-center py-12 text-sm"
-                  style={{ color: 'var(--text-muted)' }}
-                >
-                  No messages found
-                </td>
+                <td colSpan={6} className="text-center py-12 text-sm" style={{ color: 'var(--text-muted)' }}>No messages found</td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between mt-4">
+          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Page {page} of {totalPages}</span>
+          <div className="flex gap-2">
+            <button
+              onClick={() => navigate({ filter, page: page - 1 })}
+              disabled={page <= 1}
+              className="text-xs px-3 py-1.5 rounded"
+              style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: page <= 1 ? 'var(--text-disabled)' : 'var(--text-muted)' }}
+            >
+              ← Prev
+            </button>
+            <button
+              onClick={() => navigate({ filter, page: page + 1 })}
+              disabled={page >= totalPages}
+              className="text-xs px-3 py-1.5 rounded"
+              style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: page >= totalPages ? 'var(--text-disabled)' : 'var(--text-muted)' }}
+            >
+              Next →
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

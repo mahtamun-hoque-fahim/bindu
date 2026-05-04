@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { eq } from 'drizzle-orm'
 import { getDb } from '@/lib/db'
-import { users, messages } from '@/lib/db/schema'
+import { users, messages, bannedIps } from '@/lib/db/schema'
 import { getRatelimit } from '@/lib/rate-limit'
 import { sendNewMessageNotification } from '@/lib/resend'
 
@@ -23,14 +23,35 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Message too long' }, { status: 400 })
     }
 
-    // Rate limiting
+    const ip =
+      req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+      req.headers.get('x-real-ip') ||
+      'anonymous'
+
+    const db = getDb()
+    if (!db) {
+      return NextResponse.json({ error: 'Database unavailable' }, { status: 503 })
+    }
+
+    // ── IP ban check ──────────────────────────────────────────────────────────
+    if (ip !== 'anonymous') {
+      const [banned] = await db
+        .select({ id: bannedIps.id })
+        .from(bannedIps)
+        .where(eq(bannedIps.ip, ip))
+        .limit(1)
+
+      if (banned) {
+        return NextResponse.json(
+          { error: 'You are not allowed to send messages.' },
+          { status: 403 }
+        )
+      }
+    }
+
+    // ── Rate limiting ─────────────────────────────────────────────────────────
     const ratelimit = getRatelimit()
     if (ratelimit) {
-      const ip =
-        req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-        req.headers.get('x-real-ip') ||
-        'anonymous'
-
       const { success, limit, remaining, reset } = await ratelimit.limit(ip)
       if (!success) {
         return NextResponse.json(
@@ -47,12 +68,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const db = getDb()
-    if (!db) {
-      return NextResponse.json({ error: 'Database unavailable' }, { status: 503 })
-    }
-
-    // Look up recipient
+    // ── Look up recipient ─────────────────────────────────────────────────────
     const [recipient] = await db
       .select()
       .from(users)
@@ -63,20 +79,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    // Insert message — no sender info stored
-    const [inserted] = await db.insert(messages).values({
-      recipientId: recipient.id,
-      content: trimmed,
-      isRead: false,
-    }).returning({ id: messages.id })
+    if (recipient.isBanned) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
 
-    // Optional email notification
+    // ── Insert message — no sender info stored ────────────────────────────────
+    const [inserted] = await db
+      .insert(messages)
+      .values({ recipientId: recipient.id, content: trimmed, isRead: false })
+      .returning({ id: messages.id })
+
+    // ── Optional email notification ───────────────────────────────────────────
     if (recipient.emailNotifications && recipient.email) {
       sendNewMessageNotification({
         toEmail: recipient.email,
-        toName: recipient.displayName || recipient.username,
-        username: recipient.username,
-      }).catch(() => {}) // fire and forget
+        toName: recipient.displayName || recipient.username || 'there',
+        username: recipient.username || recipientUsername,
+      }).catch(() => {})
     }
 
     return NextResponse.json({ ok: true, messageId: inserted?.id ?? null })

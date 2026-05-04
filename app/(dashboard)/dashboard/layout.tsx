@@ -14,6 +14,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
     ? await db.select().from(users).where(eq(users.id, session.user.id)).limit(1)
     : []
 
+  // Google OAuth users who haven't set a username yet
+  if (dbUser && !dbUser.username) {
+    redirect('/onboarding')
+  }
+
   return (
     <div className="min-h-screen flex" style={{ background: 'var(--bg)' }}>
       <DashboardSidebar user={dbUser ?? null} />

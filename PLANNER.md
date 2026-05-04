@@ -257,24 +257,22 @@ bannedIps {
 | 4 | Auth System | ✅ | NextAuth v5: credentials + Google, registration, JWT sessions |
 | 5 | Admin Dashboard | ✅ | Stats overview, users table, messages table, banned IPs |
 | 6 | Moderation | ✅ | Flags table, FlagModal (sender + recipient), admin queue UI |
-| 7 | Polish & Deploy | ⏳ | DB push, Vercel deploy, Google OAuth config, IP ban enforcement |
+| 7 | Polish & Deploy | ✅ | IP ban enforcement, username onboarding, pagination, admin scripts |
 
 ---
 
 ## Next Steps
 
-> Ordered by priority.
+> Deploy checklist — everything is built.
 
-1. [ ] `npx drizzle-kit push` — create all tables in Neon
-2. [ ] Deploy to Vercel — configure all env vars
-3. [ ] Google Cloud Console — create OAuth app, add redirect URI: `https://bindu.app/api/auth/callback/google`
-4. [ ] Create Upstash Redis project — fill REST URL + token
-5. [ ] Insert first admin: `INSERT INTO admins (user_id, granted_by) VALUES ('your-user-id', null)`
-6. [ ] Wire IP ban check into `POST /api/messages` — query `bannedIps` table before processing
-7. [ ] Username onboarding step for Google OAuth users (currently auto-derived from email prefix)
-8. [ ] Pagination on admin users/messages (currently capped at 100/200 rows)
-9. [ ] Set up Resend verified domain for notification emails
-10. [ ] Add `drizzle-kit generate` migrations workflow for safe production schema changes
+1. [ ] `npm run db:push` — create all tables in Neon (run once against your DB)
+2. [ ] Deploy to Vercel — add all env vars from `.env.example`
+3. [ ] Google Cloud Console → Credentials → OAuth 2.0 Client → add Authorized redirect URI:
+       `https://bindu.app/api/auth/callback/google`
+4. [ ] Create Upstash Redis project → copy REST URL + token
+5. [ ] Sign up on Bindu, then run `npm run admin:grant your@email.com` to become admin
+6. [ ] Set up Resend verified domain for notification emails
+7. [ ] For future schema changes: `npm run db:generate` → `npm run db:migrate` (safe migrations)
 
 ---
 
@@ -285,4 +283,8 @@ bannedIps {
 - **2026-05-03** — Soft delete on messages (`isDeleted`) preserves flagged content for moderation review.
 - **2026-05-03** — Both sender and recipient can flag. Sender gets `messageId` back from `POST /api/messages` to reference.
 - **2026-05-03** — `getDb()` returns null gracefully when DATABASE_URL missing — no build-time crashes.
+- **2026-05-03** — IP ban check fires before rate limit check in POST /api/messages.
+- **2026-05-03** — Google OAuth users without a username are redirected to /onboarding (live availability check + preview).
+- **2026-05-03** — Admin users/messages tables paginated (25/30 rows per page, server-side).
+- **2026-05-03** — Admin scripts: npm run admin:grant email / npm run admin:revoke email.
 - **2026-05-03** — Session strategy: JWT (not DB sessions) — works with Neon HTTP driver on edge runtime.
