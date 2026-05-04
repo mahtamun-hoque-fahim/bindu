@@ -39,3 +39,17 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Env files — never commit
+.env
+.env.local
+.env.production
+.env.production.local
+.env.development.local
+.env.test.local
+
+# Drizzle migrations (generated — commit only if using CI migrations)
+# drizzle/
+
+# Scripts output
+*.log

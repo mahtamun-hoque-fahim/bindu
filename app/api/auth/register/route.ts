@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { eq, or } from 'drizzle-orm'
-import bcrypt from 'bcryptjs'
+import { hash } from '@node-rs/bcrypt'
 import { getDb } from '@/lib/db'
 import { users } from '@/lib/db/schema'
 
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Username already taken' }, { status: 409 })
     }
 
-    const hashedPassword = await bcrypt.hash(password, 12)
+    const hashedPassword = await hash(password, 12)
 
     const [user] = await db
       .insert(users)

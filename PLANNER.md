@@ -276,6 +276,62 @@ bannedIps {
 
 ---
 
+
+---
+
+## Deployment — Vercel (Primary)
+
+**Platform:** Vercel (Next.js native, serverless + edge functions)
+**Secondary:** Cloudflare Pages (optional, requires `@cloudflare/next-on-pages`)
+
+### Why Vercel works without changes
+- All API routes use `export const runtime = 'edge'` + `@neondatabase/serverless` neon-http driver — edge-compatible
+- JWT session strategy — stateless, no DB sessions needed in middleware
+- `@node-rs/bcrypt` (WASM) replaces `bcryptjs` (Node.js) — safe on Edge Runtime
+- `getDb()` lazy stub — returns null at build time, no crash without DATABASE_URL
+
+### Vercel deploy steps
+1. Push to GitHub → Vercel auto-deploys from `main` branch
+2. Add env vars in Vercel dashboard (Production + Preview):
+   ```
+   DATABASE_URL            (Neon pooled)
+   DATABASE_URL_UNPOOLED   (Neon direct — for drizzle-kit only, not needed in Vercel)
+   AUTH_SECRET             (openssl rand -base64 32)
+   GOOGLE_CLIENT_ID
+   GOOGLE_CLIENT_SECRET
+   UPSTASH_REDIS_REST_URL
+   UPSTASH_REDIS_REST_TOKEN
+   RESEND_API_KEY          (optional)
+   RESEND_FROM_EMAIL       (optional)
+   NEXT_PUBLIC_APP_URL     (https://bindu.app or your preview URL)
+   ```
+3. Google Cloud Console → OAuth 2.0 Client → Authorized redirect URIs:
+   - `https://bindu.app/api/auth/callback/google`
+   - `https://your-preview.vercel.app/api/auth/callback/google` (for PR previews)
+4. Run `npm run db:push` locally with `DATABASE_URL_UNPOOLED` in `.env.local` to create tables
+5. Sign up on deployed site → `npm run admin:grant your@email.com`
+
+### Cloudflare Pages (if needed later)
+- Install: `npm install -D @cloudflare/next-on-pages`
+- Build command: `npx @cloudflare/next-on-pages`
+- Output: `.vercel/output/static`
+- Add `export const runtime = 'edge'` to any remaining Node routes
+- `next.config.ts`: add `images: { unoptimized: true }`
+- Same env vars in Cloudflare dashboard
+
+### Edge Runtime compatibility matrix
+| Feature | Vercel Edge | Cloudflare Pages |
+|---|---|---|
+| `@neondatabase/serverless` neon-http | ✅ | ✅ |
+| `@node-rs/bcrypt` (WASM) | ✅ | ✅ |
+| NextAuth v5 JWT | ✅ | ✅ |
+| `@upstash/redis` | ✅ | ✅ |
+| `@vercel/og` | ✅ | ✅ |
+| `resend` | ✅ | ✅ |
+| Node.js `fs`, `crypto`, `Buffer` | ❌ | ❌ |
+| `bcryptjs` | ⚠️ Node only | ❌ |
+| `pg` (node-postgres) | ⚠️ Node only | ❌ |
+
 ## Notes / Decisions Log
 
 - **2026-05-03** — Replaced Clerk with NextAuth v5. Auth.js beta with Drizzle adapter. JWT sessions for edge compatibility.
@@ -287,4 +343,8 @@ bannedIps {
 - **2026-05-03** — Google OAuth users without a username are redirected to /onboarding (live availability check + preview).
 - **2026-05-03** — Admin users/messages tables paginated (25/30 rows per page, server-side).
 - **2026-05-03** — Admin scripts: npm run admin:grant email / npm run admin:revoke email.
+- **2026-05-03** — Replaced bcryptjs (Node.js only) with @node-rs/bcrypt (WASM, edge-safe). Works on Vercel Edge and Cloudflare Pages.
+- **2026-05-03** — Added vercel.json (framework: nextjs, region: sin1), next.config.ts with serverComponentsExternalPackages for bcrypt WASM.
+- **2026-05-03** — Added lib/env.ts for startup env validation — crashes at build time with clear error instead of silent undefined.
+- **2026-05-03** — No start-over needed for Vercel. All API routes already edge-compatible. Architecture was correct from the start.
 - **2026-05-03** — Session strategy: JWT (not DB sessions) — works with Neon HTTP driver on edge runtime.

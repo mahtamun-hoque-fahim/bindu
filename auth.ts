@@ -3,7 +3,7 @@ import Google from 'next-auth/providers/google'
 import Credentials from 'next-auth/providers/credentials'
 import { DrizzleAdapter } from '@auth/drizzle-adapter'
 import { eq } from 'drizzle-orm'
-import bcrypt from 'bcryptjs'
+import { hash, compare } from '@node-rs/bcrypt'
 import { getDb } from '@/lib/db'
 import { users, accounts, sessions, verificationTokens } from '@/lib/db/schema'
 
@@ -44,7 +44,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         if (!user || !user.password) return null
 
-        const valid = await bcrypt.compare(
+        const valid = await compare(
           credentials.password as string,
           user.password
         )
