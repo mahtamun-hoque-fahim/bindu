@@ -1,59 +1,67 @@
 # DESIGN_GUIDE.md — Bindu
 
-> Living design system reference.
-> Last updated: 2026-05-03
+> Living design system reference. Updated when new components or tokens are added.
+> Last updated: 2026-05-06
 
 ---
 
 ## Color Tokens
 
-| Token | CSS Variable | Hex | Usage |
+| Token | CSS Variable | Value | Usage |
 |---|---|---|---|
 | Background | `--bg` | `#0a0a0a` | Page background |
 | Surface | `--surface` | `#111111` | Cards, panels, sidebar |
-| Surface Elevated | `--surface-elevated` | `#1a1a1a` | Inputs, nested cards |
-| Border | `--border` | `#1f1f1f` | Dividers, outlines |
-| Accent | `--accent` | `#00e676` | CTAs, active states, links |
-| Accent Dim | `--accent-dim` | `rgba(0,230,118,0.08)` | Accent backgrounds, nav active fill |
+| Surface Elevated | `--surface-elevated` | `#1a1a1a` | Inputs, nested cards, table rows |
+| Border | `--border` | `#1f1f1f` | Dividers, input outlines, table lines |
+| Accent | `--accent` | `#00e676` | CTAs, active nav, links, unread dot |
+| Accent Dim | `--accent-dim` | `rgba(0,230,118,0.08)` | Active nav fill, flag radio selected, avatar bg |
 | Text | `--text` | `#f5f5f5` | Primary body text |
-| Text Muted | `--text-muted` | `#888888` | Labels, captions, nav items |
-| Text Disabled | `--text-disabled` | `#444444` | Disabled states, watermarks |
-| Destructive | `--destructive` | `#ff4444` | Errors, delete actions, banned states |
-| Warning | `--warning` | `#ffaa00` | Flag actions, rate limit, spam badges |
+| Text Muted | `--text-muted` | `#888888` | Labels, captions, secondary nav |
+| Text Disabled | `--text-disabled` | `#444444` | Disabled states, watermarks, placeholders |
+| Destructive | `--destructive` | `#ff4444` | Errors, delete, banned states, harassment flags |
+| Warning | `--warning` | `#ffaa00` | Flag actions, rate limit notices, spam badges |
+
+All defined in `app/globals.css` as `:root` CSS variables. Never hard-code hex values in components — always reference via `var(--token)`.
 
 ---
 
 ## Typography
 
 **Font Stack:**
-- Headings: `Syne` — weights 400, 600, 700 (CSS var: `--font-syne`)
-- Body: `Onest` — weights 400, 500, 600 (CSS var: `--font-onest`)
+- Headings: `Syne` (CSS var: `--font-syne`) — weights 400, 600, 700
+- Body: `Onest` (CSS var: `--font-onest`) — weights 400, 500, 600
 
-Both loaded via `next/font/google` in root layout. Applied as CSS variables on `<html>`.
+Both loaded via `next/font/google` in `app/layout.tsx`, applied as CSS variables on `<html>`.
 
-**Scale (used in practice):**
+**Scale (as used in the project):**
 
-| Usage | Size | Weight | Font |
+| Usage | Tailwind | Weight | Font |
 |---|---|---|---|
-| Hero heading | `text-5xl` (48px) | 700 | Syne |
-| Page title (h1) | `text-2xl` (24px) | 700 | Syne |
-| Section heading (h2) | `text-sm` + semibold | 600 | Syne |
-| Body | `text-sm` (14px) | 400 | Onest |
-| Label / caption | `text-xs` (12px) | 400–500 | Onest |
-| Monospace (URLs, usernames) | `font-mono` system | 400 | System mono |
+| Hero heading | `text-5xl` | 700 | Syne |
+| Page title (h1) | `text-2xl` | 700 | Syne |
+| Section heading | `text-sm` + semibold | 600 | Syne |
+| Card heading | `text-base` or `text-sm` | 500–600 | Syne |
+| Body text | `text-sm` | 400 | Onest |
+| Labels, captions | `text-xs` | 400–500 | Onest |
+| Monospace (URLs, usernames, counters) | `font-mono` system | 400 | System mono |
 
 ---
 
 ## Spacing
 
-Tailwind defaults. Common patterns in this project:
+Tailwind defaults. Common patterns:
 
-- Page padding: `px-6 py-10`
-- Card padding: `p-4` or `p-5`
-- Input padding: `px-3 py-2.5`
-- Gap between form fields: `gap-3`
-- Section gap: `mb-8`
-- Nav padding: `px-5 py-6`
+| Context | Class |
+|---|---|
+| Page container | `max-w-2xl mx-auto px-6 py-10` |
+| Card padding | `p-4` or `p-5` |
+| Card padding (large modal) | `p-6` |
+| Input padding | `px-3 py-2.5` |
+| Button padding (primary) | `px-5 py-2` or `px-6 py-3` |
+| Button padding (small) | `px-2.5 py-1` |
+| Form field gap | `gap-3` |
+| Section bottom margin | `mb-8` |
+| Sidebar padding | `px-5 py-6` |
 
 ---
 
@@ -61,11 +69,11 @@ Tailwind defaults. Common patterns in this project:
 
 | Usage | Class |
 |---|---|
-| Buttons, inputs | `rounded` or `rounded-md` |
-| Cards, panels | `rounded-lg` |
-| Send form, modals | `rounded-xl` |
-| Avatars, pills, unread dot | `rounded-full` |
-| Badges, tags | `rounded` or `rounded-full` |
+| Small buttons, badges | `rounded` (6px) |
+| Inputs, table wrappers | `rounded-md` (8px) |
+| Cards, panels, sidebar | `rounded-lg` (12px) |
+| Auth forms, send form, modals | `rounded-xl` (16px) |
+| Avatars, pills, unread dot, toggles | `rounded-full` |
 
 ---
 
@@ -73,7 +81,8 @@ Tailwind defaults. Common patterns in this project:
 
 | Name | Value | Usage |
 |---|---|---|
-| Accent glow | `0 0 24px rgba(0,230,118,0.15)` | Primary CTA button |
+| Accent glow | `0 0 24px rgba(0,230,118,0.15)` | Primary CTA buttons |
+| Accent glow (small) | `0 0 20px rgba(0,230,118,0.12)` | Onboarding save button |
 | Card elevation | `0 4px 16px rgba(0,0,0,0.5)` | Send form card |
 | Modal overlay | `0 8px 40px rgba(0,0,0,0.6)` | FlagModal |
 
@@ -96,10 +105,22 @@ Tailwind defaults. Common patterns in this project:
 <button
   className="text-xs px-2.5 py-1 rounded transition-colors"
   style={{ color: 'var(--destructive)' }}
-  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,68,68,0.1)'}
-  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+  onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,68,68,0.1)')}
+  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
 >
   Delete
+</button>
+```
+
+### Button — Warning (flag actions)
+```tsx
+<button
+  className="text-xs px-2.5 py-1 rounded transition-colors"
+  style={{ color: 'var(--warning)' }}
+  onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,170,0,0.08)')}
+  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+>
+  Flag
 </button>
 ```
 
@@ -108,10 +129,27 @@ Tailwind defaults. Common patterns in this project:
 <button
   className="text-sm px-3 py-2 rounded transition-colors"
   style={{ color: 'var(--text-muted)' }}
-  onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--surface-elevated)'; e.currentTarget.style.color = 'var(--text)' }}
-  onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)' }}
+  onMouseEnter={(e) => {
+    e.currentTarget.style.background = 'var(--surface-elevated)'
+    e.currentTarget.style.color = 'var(--text)'
+  }}
+  onMouseLeave={(e) => {
+    e.currentTarget.style.background = 'transparent'
+    e.currentTarget.style.color = 'var(--text-muted)'
+  }}
 >
   Label
+</button>
+```
+
+### Button — Google OAuth
+```tsx
+<button
+  className="w-full flex items-center justify-center gap-3 text-sm font-medium py-2.5 rounded-md transition-opacity"
+  style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)', color: 'var(--text)' }}
+>
+  <GoogleIcon />
+  Continue with Google
 </button>
 ```
 
@@ -119,9 +157,14 @@ Tailwind defaults. Common patterns in this project:
 ```tsx
 <input
   className="w-full rounded-md px-3 py-2.5 text-sm outline-none transition-colors"
-  style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)', color: 'var(--text)' }}
-  onFocus={(e) => e.target.style.borderColor = 'var(--accent)'}
-  onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
+  style={{
+    background: 'var(--surface-elevated)',
+    border: '1px solid var(--border)',
+    color: 'var(--text)',
+    caretColor: 'var(--accent)',
+  }}
+  onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
+  onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
 />
 ```
 
@@ -133,23 +176,54 @@ Tailwind defaults. Common patterns in this project:
 >
 ```
 
-### Badge — Accent
+### Card — Send Form (elevated)
 ```tsx
-<span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'var(--accent-dim)', color: 'var(--accent)' }}>
-  label
+<div
+  className="rounded-xl p-6"
+  style={{
+    background: 'var(--surface)',
+    border: '1px solid var(--border)',
+    boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
+  }}
+>
+```
+
+### Badge — Accent (unread count, active)
+```tsx
+<span
+  className="text-xs font-semibold px-2 py-0.5 rounded-full min-w-[22px] text-center"
+  style={{ background: 'var(--accent)', color: '#000' }}
+>
+  {count}
 </span>
 ```
 
-### Badge — Destructive
+### Badge — Muted (status)
 ```tsx
-<span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'rgba(255,68,68,0.1)', color: 'var(--destructive)' }}>
+<span
+  className="text-xs px-2 py-0.5 rounded-full font-medium"
+  style={{ background: 'var(--surface-elevated)', color: 'var(--text-muted)' }}
+>
+  active
+</span>
+```
+
+### Badge — Destructive (banned, harassment)
+```tsx
+<span
+  className="text-xs px-2 py-0.5 rounded-full font-medium"
+  style={{ background: 'rgba(255,68,68,0.1)', color: 'var(--destructive)' }}
+>
   banned
 </span>
 ```
 
-### Badge — Warning
+### Badge — Warning (spam, flag)
 ```tsx
-<span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'rgba(255,170,0,0.12)', color: 'var(--warning)' }}>
+<span
+  className="text-xs px-2 py-0.5 rounded-full font-medium"
+  style={{ background: 'rgba(255,170,0,0.12)', color: 'var(--warning)' }}
+>
   spam
 </span>
 ```
@@ -158,7 +232,12 @@ Tailwind defaults. Common patterns in this project:
 ```tsx
 <div
   className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold"
-  style={{ background: 'var(--accent-dim)', border: '1px solid rgba(0,230,118,0.2)', color: 'var(--accent)', fontFamily: 'var(--font-syne)' }}
+  style={{
+    background: 'var(--accent-dim)',
+    border: '1px solid rgba(0,230,118,0.2)',
+    color: 'var(--accent)',
+    fontFamily: 'var(--font-syne)',
+  }}
 >
   {name.charAt(0).toUpperCase()}
 </div>
@@ -166,10 +245,13 @@ Tailwind defaults. Common patterns in this project:
 
 ### Unread Dot
 ```tsx
-<span className="absolute top-4 right-4 w-2 h-2 rounded-full" style={{ background: 'var(--accent)' }} />
+<span
+  className="absolute top-4 right-4 w-2 h-2 rounded-full"
+  style={{ background: 'var(--accent)' }}
+/>
 ```
 
-### Nav Item (sidebar)
+### Nav Item (sidebar / admin nav)
 ```tsx
 <Link
   href={href}
@@ -179,37 +261,176 @@ Tailwind defaults. Common patterns in this project:
     background: isActive ? 'var(--accent-dim)' : 'transparent',
   }}
 >
+  {label}
+</Link>
 ```
 
-### Modal Backdrop
+### Modal Backdrop + Panel
 ```tsx
 <div
   className="fixed inset-0 z-50 flex items-center justify-center px-4"
   style={{ background: 'rgba(0,0,0,0.7)' }}
   onClick={(e) => e.target === e.currentTarget && onClose()}
 >
-  <div className="w-full max-w-sm rounded-xl p-6" style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 8px 40px rgba(0,0,0,0.6)' }}>
+  <div
+    className="w-full max-w-sm rounded-xl p-6"
+    style={{
+      background: 'var(--surface)',
+      border: '1px solid var(--border)',
+      boxShadow: '0 8px 40px rgba(0,0,0,0.6)',
+    }}
+  >
 ```
 
-### Toggle (boolean switch)
+### Toggle (boolean switch — e.g. email notifications)
 ```tsx
 <button
   onClick={toggle}
-  className="relative w-10 h-5 rounded-full transition-colors"
-  style={{ background: value ? 'var(--accent)' : 'var(--surface-elevated)', border: '1px solid var(--border)' }}
+  className="relative w-10 h-5 rounded-full transition-colors shrink-0"
+  style={{
+    background: value ? 'var(--accent)' : 'var(--surface-elevated)',
+    border: '1px solid var(--border)',
+  }}
 >
-  <span className="absolute top-0.5 w-4 h-4 rounded-full transition-all"
-    style={{ background: value ? '#000' : 'var(--text-disabled)', left: value ? '20px' : '2px' }} />
+  <span
+    className="absolute top-0.5 w-4 h-4 rounded-full transition-all"
+    style={{
+      background: value ? '#000' : 'var(--text-disabled)',
+      left: value ? '20px' : '2px',
+    }}
+  />
 </button>
 ```
 
-### Google OAuth Button
+### Radio Option (FlagModal reason selector)
 ```tsx
-<button className="w-full flex items-center justify-center gap-3 text-sm font-medium py-2.5 rounded-md"
-  style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)', color: 'var(--text)' }}
+<label
+  className="flex items-center gap-3 rounded-md px-3 py-2.5 cursor-pointer transition-colors"
+  style={{
+    background: selected ? 'var(--accent-dim)' : 'var(--surface-elevated)',
+    border: `1px solid ${selected ? 'rgba(0,230,118,0.3)' : 'var(--border)'}`,
+  }}
 >
-  <GoogleIcon /> Continue with Google
-</button>
+  <input type="radio" className="accent-[--accent]" />
+  <span style={{ color: selected ? 'var(--accent)' : 'var(--text)' }}>Label</span>
+</label>
+```
+
+### Admin Stat Card
+```tsx
+<div
+  className="rounded-lg p-4"
+  style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+>
+  <p className="text-xs mb-2" style={{ color: 'var(--text-muted)' }}>Label</p>
+  <p className="text-3xl font-bold" style={{ fontFamily: 'var(--font-syne)', color: 'var(--text)' }}>
+    {value}
+  </p>
+  <p className="text-xs mt-1" style={{ color: 'var(--text-disabled)' }}>sub-label</p>
+</div>
+```
+
+### Admin Table
+```tsx
+<div className="rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+  <table className="w-full text-sm">
+    <thead>
+      <tr style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}>
+        <th className="text-left px-4 py-3 text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
+          Column
+        </th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr
+        style={{ borderBottom: '1px solid var(--border)' }}
+        onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface)')}
+        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+      >
+        <td className="px-4 py-3">…</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+```
+
+### Pagination Controls
+```tsx
+<div className="flex items-center justify-between mt-4">
+  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+    Page {page} of {totalPages}
+  </span>
+  <div className="flex gap-2">
+    <button
+      onClick={prevPage}
+      disabled={page <= 1}
+      className="text-xs px-3 py-1.5 rounded"
+      style={{
+        background: 'var(--surface)',
+        border: '1px solid var(--border)',
+        color: page <= 1 ? 'var(--text-disabled)' : 'var(--text-muted)',
+      }}
+    >
+      ← Prev
+    </button>
+    <button
+      onClick={nextPage}
+      disabled={page >= totalPages}
+      className="text-xs px-3 py-1.5 rounded"
+      style={{
+        background: 'var(--surface)',
+        border: '1px solid var(--border)',
+        color: page >= totalPages ? 'var(--text-disabled)' : 'var(--text-muted)',
+      }}
+    >
+      Next →
+    </button>
+  </div>
+</div>
+```
+
+### Pill Tabs (admin moderation / message filter)
+```tsx
+<div className="flex gap-1">
+  {tabs.map((t) => (
+    <button
+      key={t}
+      onClick={() => setTab(t)}
+      className="text-sm px-4 py-2 rounded capitalize transition-colors"
+      style={{
+        background: active === t ? 'var(--accent-dim)' : 'var(--surface)',
+        color: active === t ? 'var(--accent)' : 'var(--text-muted)',
+        border: '1px solid var(--border)',
+      }}
+    >
+      {t}
+    </button>
+  ))}
+</div>
+```
+
+### Divider (auth forms)
+```tsx
+<div className="flex items-center gap-3">
+  <div className="flex-1 h-px" style={{ background: 'var(--border)' }} />
+  <span className="text-xs" style={{ color: 'var(--text-disabled)' }}>or</span>
+  <div className="flex-1 h-px" style={{ background: 'var(--border)' }} />
+</div>
+```
+
+### Accent Pill (landing page tag)
+```tsx
+<div
+  className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium"
+  style={{
+    background: 'var(--accent-dim)',
+    color: 'var(--accent)',
+    border: '1px solid rgba(0,230,118,0.2)',
+  }}
+>
+  <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--accent)' }} />
+  Label text
+</div>
 ```
 
 ---
@@ -218,10 +439,12 @@ Tailwind defaults. Common patterns in this project:
 
 | Usage | Class |
 |---|---|
-| Hover color changes | `transition-colors` |
+| Hover color/bg changes | `transition-colors` |
 | Opacity hover | `transition-opacity hover:opacity-80` |
 | Button press | `active:scale-95 transition-all` |
-| Group reveal (message actions) | `opacity-0 group-hover:opacity-100 transition-opacity` |
+| Group reveal (message card actions) | `opacity-0 group-hover:opacity-100 transition-opacity` |
+| Pending navigation (useTransition) | `opacity: isPending ? 0.6 : 1, transition: 'opacity 0.15s'` |
+| Toggle knob slide | `transition-all` on the `left` property |
 
 No heavy animations. Motion is minimal and purposeful.
 
@@ -230,7 +453,28 @@ No heavy animations. Motion is minimal and purposeful.
 ## Dark Mode Notes
 
 - Dark-first. No light mode.
-- Background layers: `#0a0a0a` → `#111111` → `#1a1a1a`
-- Never pure white. Max text brightness: `#f5f5f5`
-- Accent `#00e676` only on dark backgrounds
-- Scrollbar styled: 6px width, `var(--border)` thumb, `var(--bg)` track
+- Background layers: `#0a0a0a` → `#111111` → `#1a1a1a` (bg → surface → elevated)
+- Never use pure white. Max brightness for text: `#f5f5f5`
+- Accent `#00e676` only on dark backgrounds — contrast is insufficient on light
+- Scrollbar styled in `globals.css`: 6px, `var(--border)` thumb, `var(--bg)` track
+- `::selection` uses `rgba(0,230,118,0.2)` background
+
+---
+
+## globals.css Reference
+
+```css
+:root {
+  --bg: #0a0a0a;
+  --surface: #111111;
+  --surface-elevated: #1a1a1a;
+  --border: #1f1f1f;
+  --accent: #00e676;
+  --accent-dim: rgba(0, 230, 118, 0.08);
+  --text: #f5f5f5;
+  --text-muted: #888888;
+  --text-disabled: #444444;
+  --destructive: #ff4444;
+  --warning: #ffaa00;
+}
+```
