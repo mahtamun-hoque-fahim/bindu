@@ -4,6 +4,8 @@ import { getDb } from '@/lib/db'
 import { messages, flags } from '@/lib/db/schema'
 import { auth } from '@/auth'
 
+export const runtime = 'edge'
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()

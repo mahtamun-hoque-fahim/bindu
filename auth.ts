@@ -3,17 +3,22 @@ import Google from 'next-auth/providers/google'
 import Credentials from 'next-auth/providers/credentials'
 import { DrizzleAdapter } from '@auth/drizzle-adapter'
 import { eq } from 'drizzle-orm'
-import { hash, compare } from '@node-rs/bcrypt'
+import { compare } from 'bcryptjs'
 import { getDb } from '@/lib/db'
 import { users, accounts, sessions, verificationTokens } from '@/lib/db/schema'
 
-export const { handlers, signIn, signOut, auth } = NextAuth({
-  adapter: DrizzleAdapter(getDb(), {
+// DrizzleAdapter must be lazy-initialized (not at module scope) for Cloudflare Edge
+function getAdapter() {
+  return DrizzleAdapter(getDb(), {
     usersTable: users,
     accountsTable: accounts,
     sessionsTable: sessions,
     verificationTokensTable: verificationTokens,
-  }),
+  })
+}
+
+export const { handlers, signIn, signOut, auth } = NextAuth({
+  adapter: getAdapter(),
   session: { strategy: 'jwt' },
   pages: {
     signIn: '/sign-in',

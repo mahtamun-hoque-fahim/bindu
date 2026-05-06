@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { eq, or } from 'drizzle-orm'
-import { hash } from '@node-rs/bcrypt'
+import { hash } from 'bcryptjs'
 import { getDb } from '@/lib/db'
 import { users } from '@/lib/db/schema'
+
+export const runtime = 'edge'
 
 export async function POST(req: NextRequest) {
   try {

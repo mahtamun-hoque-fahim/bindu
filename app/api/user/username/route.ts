@@ -4,6 +4,8 @@ import { getDb } from '@/lib/db'
 import { users } from '@/lib/db/schema'
 import { auth } from '@/auth'
 
+export const runtime = 'edge'
+
 export async function PATCH(req: NextRequest) {
   const session = await auth()
   const userId = session?.user?.id
