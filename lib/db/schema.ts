@@ -6,10 +6,8 @@ import {
   serial,
   pgEnum,
   integer,
-  primaryKey,
 } from 'drizzle-orm/pg-core'
 import { relations } from 'drizzle-orm'
-import type { AdapterAccountType } from 'next-auth/adapters'
 
 // ─── Enums ────────────────────────────────────────────────────────────────────
 
@@ -28,7 +26,7 @@ export const flagStatusEnum = pgEnum('flag_status', [
   'dismissed',
 ])
 
-// ─── NextAuth required tables ─────────────────────────────────────────────────
+// ─── Users ────────────────────────────────────────────────────────────────────
 
 export const users = pgTable('users', {
   id: text('id')
@@ -36,10 +34,8 @@ export const users = pgTable('users', {
     .$defaultFn(() => crypto.randomUUID()),
   name: text('name'),
   email: text('email').unique(),
-  emailVerified: timestamp('email_verified', { mode: 'date' }),
   image: text('image'),
-  password: text('password'), // null for OAuth users
-  // App-specific
+  password: text('password').notNull(),
   username: text('username').unique(),
   displayName: text('display_name'),
   emailNotifications: boolean('email_notifications').default(true),
@@ -49,43 +45,18 @@ export const users = pgTable('users', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 
-export const accounts = pgTable(
-  'accounts',
-  {
-    userId: text('user_id')
-      .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
-    type: text('type').$type<AdapterAccountType>().notNull(),
-    provider: text('provider').notNull(),
-    providerAccountId: text('provider_account_id').notNull(),
-    refresh_token: text('refresh_token'),
-    access_token: text('access_token'),
-    expires_at: integer('expires_at'),
-    token_type: text('token_type'),
-    scope: text('scope'),
-    id_token: text('id_token'),
-    session_state: text('session_state'),
-  },
-  (t) => [primaryKey({ columns: [t.provider, t.providerAccountId] })]
-)
+// ─── Password reset tokens ────────────────────────────────────────────────────
 
-export const sessions = pgTable('sessions', {
-  sessionToken: text('session_token').primaryKey(),
+export const passwordResetTokens = pgTable('password_reset_tokens', {
+  id: serial('id').primaryKey(),
   userId: text('user_id')
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
-  expires: timestamp('expires', { mode: 'date' }).notNull(),
+  token: text('token').notNull().unique(),
+  expiresAt: timestamp('expires_at').notNull(),
+  usedAt: timestamp('used_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
 })
-
-export const verificationTokens = pgTable(
-  'verification_tokens',
-  {
-    identifier: text('identifier').notNull(),
-    token: text('token').notNull(),
-    expires: timestamp('expires', { mode: 'date' }).notNull(),
-  },
-  (t) => [primaryKey({ columns: [t.identifier, t.token] })]
-)
 
 // ─── App tables ───────────────────────────────────────────────────────────────
 
@@ -94,7 +65,7 @@ export const admins = pgTable('admins', {
     .primaryKey()
     .references(() => users.id, { onDelete: 'cascade' }),
   grantedAt: timestamp('granted_at').defaultNow().notNull(),
-  grantedBy: text('granted_by'), // userId of who granted it
+  grantedBy: text('granted_by'),
 })
 
 export const messages = pgTable('messages', {
@@ -135,6 +106,11 @@ export const bannedIps = pgTable('banned_ips', {
 
 export const usersRelations = relations(users, ({ many }) => ({
   messages: many(messages),
+  passwordResetTokens: many(passwordResetTokens),
+}))
+
+export const passwordResetTokensRelations = relations(passwordResetTokens, ({ one }) => ({
+  user: one(users, { fields: [passwordResetTokens.userId], references: [users.id] }),
 }))
 
 export const messagesRelations = relations(messages, ({ one, many }) => ({
@@ -155,3 +131,4 @@ export type NewMessage = typeof messages.$inferInsert
 export type Flag = typeof flags.$inferSelect
 export type BannedIp = typeof bannedIps.$inferSelect
 export type Admin = typeof admins.$inferSelect
+export type PasswordResetToken = typeof passwordResetTokens.$inferSelect
