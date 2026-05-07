@@ -5,6 +5,8 @@ import { eq, desc } from 'drizzle-orm'
 import ModerationClient from '@/components/admin/ModerationClient'
 import type { Metadata } from 'next'
 
+export const runtime = 'edge'
+
 export const metadata: Metadata = { title: 'Moderation — Admin — Bindu' }
 export const dynamic = 'force-dynamic'
 

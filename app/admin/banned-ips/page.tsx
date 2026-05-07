@@ -5,6 +5,8 @@ import { desc } from 'drizzle-orm'
 import BannedIpsClient from '@/components/admin/BannedIpsClient'
 import type { Metadata } from 'next'
 
+export const runtime = 'edge'
+
 export const metadata: Metadata = { title: 'Banned IPs — Admin — Bindu' }
 export const dynamic = 'force-dynamic'
 

@@ -1,6 +1,8 @@
 import SignUpForm from '@/components/auth/SignUpForm'
 import type { Metadata } from 'next'
 
+export const runtime = 'edge'
+
 export const metadata: Metadata = { title: 'Create account — Bindu' }
 
 export default function SignUpPage() {

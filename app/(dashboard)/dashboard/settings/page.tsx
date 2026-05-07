@@ -6,6 +6,8 @@ import { users } from '@/lib/db/schema'
 import SettingsForm from '@/components/dashboard/SettingsForm'
 import type { Metadata } from 'next'
 
+export const runtime = 'edge'
+
 export const metadata: Metadata = { title: 'Settings — Bindu' }
 export const dynamic = 'force-dynamic'
 

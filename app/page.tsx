@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import { auth } from '@/auth'
 
+export const runtime = 'edge'
+
 export default async function HomePage() {
   const session = await auth()
   const isSignedIn = !!session?.user

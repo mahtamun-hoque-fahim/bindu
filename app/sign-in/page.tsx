@@ -1,6 +1,8 @@
 import SignInForm from '@/components/auth/SignInForm'
 import type { Metadata } from 'next'
 
+export const runtime = 'edge'
+
 export const metadata: Metadata = { title: 'Sign in — Bindu' }
 
 export default function SignInPage() {

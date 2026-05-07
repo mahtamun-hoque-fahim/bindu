@@ -5,6 +5,8 @@ import { eq, count, desc, and } from 'drizzle-orm'
 import AdminMessagesClient from '@/components/admin/MessagesClient'
 import type { Metadata } from 'next'
 
+export const runtime = 'edge'
+
 export const metadata: Metadata = { title: 'Messages — Admin — Bindu' }
 export const dynamic = 'force-dynamic'
 

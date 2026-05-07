@@ -5,6 +5,8 @@ import { getDb } from '@/lib/db'
 import { users } from '@/lib/db/schema'
 import DashboardSidebar from '@/components/dashboard/Sidebar'
 
+export const runtime = 'edge'
+
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await auth()
   if (!session?.user?.id) redirect('/sign-in')

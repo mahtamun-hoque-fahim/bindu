@@ -6,6 +6,8 @@ import { messages } from '@/lib/db/schema'
 import InboxList from '@/components/dashboard/InboxList'
 import type { Metadata } from 'next'
 
+export const runtime = 'edge'
+
 export const metadata: Metadata = { title: 'Inbox — Bindu' }
 export const dynamic = 'force-dynamic'
 

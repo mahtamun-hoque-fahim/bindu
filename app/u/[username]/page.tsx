@@ -6,6 +6,8 @@ import { users } from '@/lib/db/schema'
 import SendForm from '@/components/send/SendForm'
 import Link from 'next/link'
 
+export const runtime = 'edge'
+
 type Props = { params: Promise<{ username: string }> }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {

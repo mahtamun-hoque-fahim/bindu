@@ -5,6 +5,8 @@ import { eq, count, desc, ilike, or } from 'drizzle-orm'
 import AdminUsersClient from '@/components/admin/UsersClient'
 import type { Metadata } from 'next'
 
+export const runtime = 'edge'
+
 export const metadata: Metadata = { title: 'Users — Admin — Bindu' }
 export const dynamic = 'force-dynamic'
 

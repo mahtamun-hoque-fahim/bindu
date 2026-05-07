@@ -5,6 +5,8 @@ import { eq, count, desc, gte, and } from 'drizzle-orm'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 
+export const runtime = 'edge'
+
 export const metadata: Metadata = { title: 'Admin — Bindu' }
 export const dynamic = 'force-dynamic'
 
