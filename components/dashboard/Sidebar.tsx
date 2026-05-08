@@ -25,7 +25,7 @@ export default function DashboardSidebar({ user }: { user: User | null }) {
       {/* Desktop */}
       <aside className="hidden md:flex flex-col w-64 min-h-screen shrink-0 px-5 py-6" style={{ borderRight: '1px solid var(--border)' }}>
         <Link href="/" className="block mb-8">
-          <span className="text-xl font-bold" style={{ fontFamily: 'var(--font-syne)', color: 'var(--accent)' }}>বিন্দু</span>
+          <span className="text-xl font-bold" style={{ fontFamily: 'var(--font-bengali)', color: 'var(--accent)' }}>বিন্দু</span>
         </Link>
 
         {user && (
@@ -71,7 +71,7 @@ export default function DashboardSidebar({ user }: { user: User | null }) {
 
       {/* Mobile top bar */}
       <div className="md:hidden fixed top-0 inset-x-0 z-50 flex items-center justify-between px-4 py-3" style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
-        <span className="text-base font-bold" style={{ fontFamily: 'var(--font-syne)', color: 'var(--accent)' }}>বিন্দু</span>
+        <span className="text-base font-bold" style={{ fontFamily: 'var(--font-bengali)', color: 'var(--accent)' }}>বিন্দু</span>
         <div className="flex items-center gap-3">
           {[{ href: '/dashboard', label: 'Inbox' }, { href: '/dashboard/settings', label: 'Settings' }].map(({ href, label }) => (
             <Link key={href} href={href} className="text-sm" style={{ color: pathname === href ? 'var(--accent)' : 'var(--text-muted)' }}>{label}</Link>

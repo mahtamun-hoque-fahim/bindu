@@ -10,7 +10,7 @@ export default async function HomePage() {
   return (
     <main className="min-h-screen flex flex-col">
       <nav className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid var(--border)' }}>
-        <span className="text-lg font-bold" style={{ fontFamily: 'var(--font-syne)', color: 'var(--accent)' }}>বিন্দু</span>
+        <span className="text-lg font-bold" style={{ fontFamily: 'var(--font-bengali)', color: 'var(--accent)' }}>বিন্দু</span>
         <div className="flex items-center gap-3">
           {isSignedIn ? (
             <Link href="/dashboard" className="text-sm font-semibold px-4 py-1.5 rounded hover:opacity-90 transition-opacity" style={{ background: 'var(--accent)', color: '#000' }}>
