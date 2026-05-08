@@ -113,6 +113,8 @@ export default function SendForm({ username }: { username: string }) {
           border: `1px solid ${status === 'error' ? 'var(--destructive)' : 'var(--border)'}`,
           color: 'var(--text)',
           caretColor: 'var(--accent)',
+          fontFamily: /[\u0980-\u09FF]/.test(content) ? 'var(--font-bengali)' : undefined,
+          fontSize: /[\u0980-\u09FF]/.test(content) ? '1rem' : undefined,
         }}
         onFocus={(e) => { if (status !== 'error') e.target.style.borderColor = 'var(--accent)' }}
         onBlur={(e) => { if (status !== 'error') e.target.style.borderColor = 'var(--border)' }}
