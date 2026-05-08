@@ -45,5 +45,8 @@
     "tsx": "^4.21.0",
     "typescript": "^5",
     "wrangler": "^4.90.0"
+  },
+  "overrides": {
+    "picomatch": "4.0.4"
   }
 }
