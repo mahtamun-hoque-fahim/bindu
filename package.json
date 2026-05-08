@@ -11,8 +11,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
-    "admin:grant": "npx tsx scripts/grant-admin.ts",
-    "admin:revoke": "npx tsx scripts/revoke-admin.ts",
+    "admin:grant": "node --import tsx/esm scripts/grant-admin.ts",
+    "admin:revoke": "node --import tsx/esm scripts/revoke-admin.ts",
     "build:cf": "opennextjs-cloudflare build",
     "preview:cf": "opennextjs-cloudflare build && wrangler pages dev",
     "deploy:cf": "opennextjs-cloudflare build && wrangler pages deploy"
