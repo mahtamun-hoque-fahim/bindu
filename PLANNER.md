@@ -256,7 +256,7 @@ Full Drizzle definitions live in `lib/db/schema.ts`.
 | 1 | Landing + design system | ✅ | All sections ported, theme switcher + dark toggle, live demo widget |
 | 2 | Crypto core | ✅ | `lib/crypto/` — keypair, hybrid encrypt/decrypt, PBKDF2 KDF, sender-hash, browser lab page |
 | 3 | Auth | ✅ | HS256 session cookies, passphrase signup/signin, IndexedDB key cache, route guards, diceware generator |
-| 4 | Send flow | ⏳ | `/u/[username]`, pubkey fetch, encrypt-in-browser, POST `/api/messages`, IP ban + rate limit |
+| 4 | Send flow | ✅ | `/u/[username]`, pubkey fetch, encrypt-in-browser, POST `/api/messages`, IP ban + rate limit, silent mute drop |
 | 5 | Recipient inbox | ⏳ | 3-pane dashboard, decrypt-in-browser, mood reactions, mute by hash, on-device safety filter |
 | 6 | Story export | ⏳ | Render message to 1080×1920 PNG via canvas |
 | 7 | Settings | ⏳ | Theme picker, passphrase rotation, blocked-hashes list, recovery info |
@@ -269,15 +269,18 @@ Full Drizzle definitions live in `lib/db/schema.ts`.
 
 ## Next Steps
 
-> Phase 4 — anonymous send flow.
+> Phase 5 — recipient inbox.
 
-1. [ ] `/api/pubkey/[username]` route — returns `{recipientId, pubKey}`, IP-ban-gated
-2. [ ] `/u/[username]` public page — fetches pubkey, renders SendForm
-3. [ ] `SendForm` client component — type, pick mood, encrypts in-browser, POSTs ciphertext + senderHash
-4. [ ] `/api/messages` POST handler — IP ban check, rate limit, muted-hash check, insert
-5. [ ] Success state — "sent. no trace." with link to claim your own inbox
-6. [ ] Edge cases — recipient doesn't exist, recipient banned, recipient muted you, message too long
-7. [ ] Test end-to-end on a dev Neon DB
+1. [ ] `/api/messages` GET — list recipient's messages, paginated, ciphertext + metadata
+2. [ ] `/api/messages/[id]` PATCH — `{isRead?, isFavorited?}`
+3. [ ] `/api/messages/[id]` DELETE — soft delete
+4. [ ] `/api/reactions` POST / DELETE
+5. [ ] `/api/mutes` POST / DELETE
+6. [ ] `app/(dashboard)/dashboard/` — replace placeholder with 3-pane layout (list / reader / sidebar)
+7. [ ] `Inbox` client component — decrypts in-browser, virtualized list, filter chips (all / new / fav / ⚠)
+8. [ ] `MessageReader` — selected-message detail with mood reactions, mute hash, favorite, delete
+9. [ ] `Sidebar` — mood-of-the-week stats, top sender hashes, Bindu+ teaser
+10. [ ] `lib/safety-filter.ts` — client-side word filter (slurs / doxxing patterns / self-harm)
 
 ---
 
@@ -294,3 +297,7 @@ Full Drizzle definitions live in `lib/db/schema.ts`.
 - **2026-05-31** — Phase 3: passphrase goes over TLS to server for bcrypt-verify only (~100ms in memory, never persisted). Server never sees the unwrapped private key. KEK is derived browser-side from `(passphrase, salt)` and lives only in the tab. The unwrapped private key is non-extractable + cached in IndexedDB across navigations within a browser session.
 - **2026-05-31** — Diceware passphrase generator default: 6 words from a 633-word short-common-English list, ~54 bits entropy. Users can type their own. Strength meter is heuristic (no zxcvbn) to keep bundle small.
 - **2026-05-31** — Route protection done in layouts via `requireSession()` (Server Component redirect) and per-handler `requireSessionApi()`. No `proxy.ts` — Next 16 forbids edge proxies, opennextjs-cloudflare requires them; layouts handle it cleanly.
+- **2026-05-31** — Phase 4: send flow returns the same success response for genuine sends AND silently-dropped (muted) messages. A sender cannot tell from the API response whether they were muted — preventing the "clear localStorage → new hash → evade mute" attack. Rate limit slot is still consumed for silent drops.
+- **2026-05-31** — Banned users 404 to senders, not 403, so ban status doesn't leak to the wider internet.
+- **2026-05-31** — `/u/[username]` applies the recipient's chosen theme (sunset/acid/dream) to the sender's view, so the send page feels like the recipient's space.
+- **2026-05-31** — `/api/messages` POST: validation runs BEFORE DB checks so malformed requests fail fast and informatively even if the DB is unreachable. Rate limit is the only DB-free gate that runs first (5 req/10min/IP, in-memory in dev, Upstash in prod).
