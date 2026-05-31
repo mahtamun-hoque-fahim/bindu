@@ -203,6 +203,10 @@ section { padding: 96px 0; }
 }
 .pulse { animation: pulse-ring 2s infinite; }
 
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 .no-bar::-webkit-scrollbar { display: none; }
 .no-bar { scrollbar-width: none; }
 

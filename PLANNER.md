@@ -253,9 +253,9 @@ Full Drizzle definitions live in `lib/db/schema.ts`.
 | Phase | Name | Status | Key Tasks |
 |---|---|---|---|
 | 0 | Scaffold | ✅ | Next 16, Drizzle schema, theme tokens, CF Pages config, lazy DB, env shape |
-| 1 | Landing + design system | ⏳ | Port all sections from prototype, theme switcher, live demo widget |
-| 2 | Crypto core | ⏳ | `lib/crypto/` — keypair, hybrid encrypt/decrypt, PBKDF2 KDF, sender-hash derivation, browser-side test page |
-| 3 | Auth | ⏳ | Passphrase signup/signin, session cookies, middleware route guards, IndexedDB key cache |
+| 1 | Landing + design system | ✅ | All sections ported, theme switcher + dark toggle, live demo widget |
+| 2 | Crypto core | ✅ | `lib/crypto/` — keypair, hybrid encrypt/decrypt, PBKDF2 KDF, sender-hash, browser lab page |
+| 3 | Auth | ✅ | HS256 session cookies, passphrase signup/signin, IndexedDB key cache, route guards, diceware generator |
 | 4 | Send flow | ⏳ | `/u/[username]`, pubkey fetch, encrypt-in-browser, POST `/api/messages`, IP ban + rate limit |
 | 5 | Recipient inbox | ⏳ | 3-pane dashboard, decrypt-in-browser, mood reactions, mute by hash, on-device safety filter |
 | 6 | Story export | ⏳ | Render message to 1080×1920 PNG via canvas |
@@ -269,17 +269,15 @@ Full Drizzle definitions live in `lib/db/schema.ts`.
 
 ## Next Steps
 
-> Phase 1 — landing page and design system.
+> Phase 4 — anonymous send flow.
 
-1. [ ] Port `sections.jsx` to TSX components in `components/landing/`
-2. [ ] Build `<TopNav>` with working dark-mode toggle (client component, persists to localStorage)
-3. [ ] Build `<Hero>` with three layouts (A center, B split, C phone) — start with A as default
-4. [ ] Build `<LiveDemo>` send widget — mock (no backend yet), shows the encrypt-send-success arc
-5. [ ] Build `<HowItWorks>`, `<Features>` (bento), `<Privacy>` (4 pillars on dark), `<FAQ>`
-6. [ ] Build `<DashboardsPreview>` — three tiles linking to /dashboard, /staff, /admin (which are still 404 until Phase 5/8/9)
-7. [ ] Build `<FinalCTA>` and `<Footer>`
-8. [ ] Theme switcher (sunset / acid / dream) — client component, persists to localStorage, applies `.theme-*` class to body
-9. [ ] Visual audit + responsive pass at 375 / 768 / 1280 / 1440
+1. [ ] `/api/pubkey/[username]` route — returns `{recipientId, pubKey}`, IP-ban-gated
+2. [ ] `/u/[username]` public page — fetches pubkey, renders SendForm
+3. [ ] `SendForm` client component — type, pick mood, encrypts in-browser, POSTs ciphertext + senderHash
+4. [ ] `/api/messages` POST handler — IP ban check, rate limit, muted-hash check, insert
+5. [ ] Success state — "sent. no trace." with link to claim your own inbox
+6. [ ] Edge cases — recipient doesn't exist, recipient banned, recipient muted you, message too long
+7. [ ] Test end-to-end on a dev Neon DB
 
 ---
 
@@ -293,3 +291,6 @@ Full Drizzle definitions live in `lib/db/schema.ts`.
 - **2026-05-31** — Three themes (sunset/acid/dream) ship in v1. Sunset is the brand default. All three have dark mode.
 - **2026-05-31** — No email, no phone, no OAuth. Passphrase is the only secret.
 - **2026-05-31** — Group dots and Bindu+ deferred to v2. Schema is present; surface is dormant.
+- **2026-05-31** — Phase 3: passphrase goes over TLS to server for bcrypt-verify only (~100ms in memory, never persisted). Server never sees the unwrapped private key. KEK is derived browser-side from `(passphrase, salt)` and lives only in the tab. The unwrapped private key is non-extractable + cached in IndexedDB across navigations within a browser session.
+- **2026-05-31** — Diceware passphrase generator default: 6 words from a 633-word short-common-English list, ~54 bits entropy. Users can type their own. Strength meter is heuristic (no zxcvbn) to keep bundle small.
+- **2026-05-31** — Route protection done in layouts via `requireSession()` (Server Component redirect) and per-handler `requireSessionApi()`. No `proxy.ts` — Next 16 forbids edge proxies, opennextjs-cloudflare requires them; layouts handle it cleanly.
