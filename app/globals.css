@@ -205,3 +205,38 @@ section { padding: 96px 0; }
 
 .no-bar::-webkit-scrollbar { display: none; }
 .no-bar { scrollbar-width: none; }
+
+/* ─── Responsive — landing grids collapse on small screens ──────────────── */
+@media (max-width: 900px) {
+  /* TopNav: hide the middle link cluster */
+  .nav-links { display: none !important; }
+
+  /* Features bento: stack to 1 column, auto height */
+  .features-grid {
+    grid-template-columns: 1fr !important;
+    grid-auto-rows: auto !important;
+  }
+  .features-grid > * {
+    grid-row: auto !important;
+    min-height: 200px;
+  }
+}
+@media (max-width: 720px) {
+  /* Privacy: stack pillars below the headline */
+  section#privacy .container {
+    grid-template-columns: 1fr !important;
+    gap: 40px !important;
+  }
+  section#privacy .container > div:first-child {
+    position: static !important;
+  }
+
+  /* Footer: 2 columns instead of 5 */
+  footer .container > div:first-child {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 32px !important;
+  }
+  footer .container > div:first-child > div:first-child {
+    grid-column: 1 / -1;
+  }
+}

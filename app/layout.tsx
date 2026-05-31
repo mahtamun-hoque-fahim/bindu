@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next'
+import { ThemeProvider } from '@/components/providers/ThemeProvider'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -41,7 +42,9 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="theme-sunset">{children}</body>
+      <body className="theme-sunset">
+        <ThemeProvider>{children}</ThemeProvider>
+      </body>
     </html>
   )
 }
