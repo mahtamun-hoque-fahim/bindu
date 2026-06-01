@@ -1,7 +1,7 @@
 # PLANNER.md — Bindu
 
 > Living technical document. Updated whenever `update repo` is triggered.
-> Last updated: 2026-05-31
+> Last updated: 2026-06-01
 
 ---
 
@@ -10,10 +10,10 @@
 | Field | Value |
 |---|---|
 | Project | Bindu (বিন্দু) |
-| Purpose | End-to-end encrypted anonymous inbox — share a link, receive whispers, reply with vibes |
+| Purpose | End-to-end encrypted anonymous inbox — share a link, receive whispers, reply with vibes, export to story |
 | Target User | Teens and young adults; group-chat-native; want honest, anonymous feedback without the trauma of NGL/Sendit |
 | Key Value | The server literally cannot read your messages. Hashed sender IDs let you block without de-anonymizing. |
-| Status | 🔄 Phase 0 complete — scaffold deployed |
+| Status | 🟡 Phases 0–6 complete · Phases 7–9 pending |
 | Repo | `https://github.com/mahtamun-hoque-fahim/bindu` |
 | Live URL | `https://bindu.app` *(pending CF Pages deploy)* |
 | Prior code | `pre-pivot-archive` branch |
@@ -27,126 +27,152 @@
 - Framework: Next.js 16.2.6 App Router (TypeScript)
 - Styling: Tailwind CSS v4 + CSS variables (three themes)
 - Database: Neon (PostgreSQL) via Drizzle ORM 0.45.2
-- Auth: Custom passphrase-based — no email, no OAuth. bcryptjs for passphrase hashing.
+- Auth: Custom passphrase-based — no email, no OAuth. bcryptjs for passphrase hashing. HS256 cookies signed with WebCrypto HMAC (no JWT lib).
 - Crypto: WebCrypto API (browser-native). No libsodium, no external crypto deps.
-- Rate limiting: Upstash Redis (`@upstash/ratelimit` + `@upstash/redis`)
+- Rate limiting: Upstash Redis (`@upstash/ratelimit` + `@upstash/redis`); falls back to in-memory in dev when env absent
 - Deployment: **Cloudflare Pages (primary)** via `@opennextjs/cloudflare`
 
 **Cloudflare edge constraints (enforced everywhere):**
 
 - All API routes and pages: `export const runtime = 'edge'`
-- NEVER use `@node-rs/bcrypt` — WASM too large for CF worker. Use `bcryptjs`.
+- NEVER `@node-rs/bcrypt` (WASM too large for CF Worker). Use `bcryptjs`.
 - NEVER use Node-only APIs (`fs`, `Buffer`, etc.). For base64 use `btoa`/`atob` helpers in `lib/utils.ts`.
 - `getDb()` is lazy — returns `null` when `DATABASE_URL` is absent (build time).
-- WebCrypto (`crypto.subtle`) is available on the edge — used both server-side (passphrase hashing helpers if needed) and client-side (all E2E crypto).
+- WebCrypto (`crypto.subtle`) is available on edge and used for session HMAC, all client-side crypto.
+- No `middleware.ts` / `proxy.ts` — Next 16 forbids edge proxies, opennextjs-cloudflare requires them. Route protection lives in layouts (`requireSession` for pages) and per-handler (`requireSessionApi` for routes).
 
-**Folder structure:**
+**Folder structure (current):**
 
 ```
 /
 ├── app/
-│   ├── (auth)/                 # sign-in, sign-up, recovery
-│   ├── (dashboard)/            # /dashboard — recipient inbox
-│   ├── (staff)/                # /staff — moderation queue
-│   ├── (admin)/                # /admin — platform ops
-│   ├── u/[username]/           # public anonymous send page
+│   ├── (auth)/
+│   │   ├── layout.tsx                ← redirects to /dashboard if signed in
+│   │   ├── sign-in/{page,SignInForm}.tsx
+│   │   └── sign-up/{page,SignUpForm}.tsx
+│   ├── (dashboard)/
+│   │   ├── layout.tsx                ← requireSession()
+│   │   └── dashboard/
+│   │       ├── page.tsx              ← loads user, mounts <Inbox>
+│   │       ├── Inbox.tsx             ← orchestrator
+│   │       ├── UnlockGate.tsx        ← passphrase prompt when IDB empty
+│   │       ├── Sidebar.tsx           ← filters / copy-link / lock / sign-out
+│   │       ├── MessageList.tsx      ← decrypted list
+│   │       ├── MessageReader.tsx    ← reader + actions
+│   │       ├── StoryExportModal.tsx ← preview + share/download
+│   │       ├── RightPanel.tsx       ← share card + mood-of-week + top hashes
+│   │       └── types.ts
 │   ├── api/
-│   │   ├── auth/{sign-in,sign-up,sign-out}/
-│   │   ├── messages/           # POST send, GET inbox, PATCH read/fav
-│   │   ├── messages/[id]/      # DELETE, PATCH
-│   │   ├── messages/flag/      # POST flag with re-submitted plaintext
-│   │   ├── reactions/          # POST mood reaction
-│   │   ├── mutes/              # POST mute hash, DELETE unmute
-│   │   ├── user/               # PATCH theme, passphrase rotation
-│   │   ├── pubkey/[username]/  # GET recipient pub key (for sender)
-│   │   ├── staff/flags/        # GET queue, PATCH resolve/dismiss
-│   │   └── admin/              # stats, users CRUD, ip bans
-│   ├── globals.css             # three theme tokens + base styles
-│   ├── layout.tsx
-│   ├── page.tsx                # landing
-│   └── not-found.tsx
+│   │   ├── auth/
+│   │   │   ├── sign-up/route.ts
+│   │   │   ├── sign-in/route.ts
+│   │   │   ├── sign-out/route.ts
+│   │   │   └── me/route.ts
+│   │   ├── messages/
+│   │   │   ├── route.ts              ← GET inbox + POST send
+│   │   │   ├── post.ts               ← extracted POST handler
+│   │   │   └── [id]/route.ts         ← PATCH read/fav, DELETE
+│   │   ├── reactions/route.ts        ← POST + DELETE
+│   │   ├── mutes/route.ts            ← POST + DELETE
+│   │   ├── pubkey/[username]/route.ts ← public, 60s cache
+│   │   └── user/
+│   │       ├── check-username/route.ts
+│   │       └── encrypted-key/route.ts ← wrapped privKey for UnlockGate
+│   ├── lab/crypto/{page,CryptoLab}.tsx  ← dev-only roundtrip lab
+│   ├── u/[username]/{page,SendForm,not-found}.tsx
+│   ├── globals.css                   ← three themes + base primitives
+│   ├── layout.tsx                    ← Google Fonts preload, ThemeProvider
+│   ├── page.tsx                      ← landing
+│   └── not-found.tsx                 ← global 404
 ├── components/
-│   ├── landing/                # Hero, Features, Privacy, FAQ, etc.
-│   ├── send/                   # public SendForm
-│   ├── dashboard/              # Inbox, MessageReader, Settings, ShareCard
-│   ├── staff/                  # FlagQueue, FlagDetail
-│   ├── admin/                  # UsersTable, StatsCards, BannedIps
-│   └── ui/                     # primitives (Button, Bubble, Chip, Stat, Panel)
+│   ├── landing/                      ← 10 sections (TopNav, Hero, LiveDemo,
+│   │                                    Logos, HowItWorks, Features, Privacy,
+│   │                                    DashboardsPreview, FAQ, FinalCTA, Footer)
+│   └── providers/ThemeProvider.tsx
 ├── lib/
-│   ├── db/                     # index.ts (lazy edge client) + schema.ts
-│   ├── crypto/                 # WebCrypto wrappers — keypair, hybrid encrypt, KDF, hash
-│   ├── session.ts              # cookie session w/ HS256 (edge)
-│   ├── safety-filter.ts        # client-side word filter
-│   ├── rate-limit.ts           # Upstash ratelimiter (lazy)
-│   ├── env.ts                  # lazy env access
-│   └── utils.ts                # cn, timeAgo, base64
-├── middleware.ts               # edge route protection (Phase 3+)
+│   ├── auth/                         ← client.ts, server.ts, passwords.ts,
+│   │                                    validation.ts, diceware.ts (633 words)
+│   ├── canvas/story-card.ts          ← 1080×1920 story PNG renderer
+│   ├── crypto/                       ← types, keypair, kdf, wrap, hybrid,
+│   │                                    sender-hash, index (barrel)
+│   ├── db/                           ← index (lazy edge client), schema
+│   ├── env.ts                        ← lazy env access
+│   ├── key-cache.ts                  ← IndexedDB CryptoKey store
+│   ├── rate-limit.ts                 ← Upstash + in-memory fallback
+│   ├── safety-filter.ts              ← doxxing + self-harm classification
+│   ├── session.ts                    ← HS256 cookies via WebCrypto
+│   └── utils.ts                      ← cn, timeAgo, base64 helpers
 ├── drizzle.config.ts
-├── open-next.config.ts         # CF Pages adapter
+├── open-next.config.ts
 ├── wrangler.jsonc
 ├── next.config.ts
 └── tsconfig.json
 ```
 
+**Total code: 68 TS/TSX files.**
+
 ---
 
 ## User Flows
 
-### Flow 1: Sender (no account)
+### Flow 1: Sender (no account, /u/[username])
 
 1. Visits `/u/[username]`
-2. Browser fetches `/api/pubkey/[username]` → recipient's public JWK
-3. Browser generates a stable `senderDeviceId` (random 32 bytes in localStorage if not present)
-4. Browser computes `senderHash = SHA-256(senderDeviceId || recipientId).slice(0,4)` → `#f3a9`
-5. Sender composes message (≤200 chars free, 500 paid), picks mood emoji
-6. Browser generates ephemeral ECDH keypair, derives shared secret with recipient's pubKey, AES-GCM encrypts
-7. POST `/api/messages` with `{ recipientId, ciphertext, iv, ephemeralPubKey, mood, senderHash }`
-8. Server: check IP ban → rate limit (5/10 min) → check muted hashes → insert
-9. Success screen: "Sent. No trace."
+2. Server-renders the recipient profile (displayName, bio, theme), 404s if not found / banned
+3. Client `SendForm` mounts → `getOrCreateDeviceId()` from localStorage (32 random bytes)
+4. `deriveSenderHash(deviceId, recipientId)` → 4 hex chars (`#f3a9` style)
+5. User composes (≤200 chars) + picks mood (whitelist)
+6. `importPublicJwk(recipient.pubKey)` → recipient's ECDH public key
+7. `encryptToRecipient(plaintext, recipientPub)` — generate ephemeral keypair, ECDH-derive shared, AES-256-GCM encrypt, return `{ciphertext, iv, ephemeralPubKey}`
+8. POST `/api/messages` with `{recipientId, ciphertext, iv, ephemeralPubKey, senderHash, mood}`
+9. Server: rate limit → JSON parse → envelope shape → ciphertext/iv caps → senderHash regex → mood whitelist → DB → IP ban → recipient exists+unbanned → muted hash silent drop → insert
+10. Response 201 — same for accept and silent drop (sender can't probe mute status)
+11. UI: "delivered anonymously · no trace" + Send-another / Get-your-own-inbox CTAs
 
-### Flow 2: Recipient — signup + first message
+### Flow 2: Recipient — signup
 
-1. Visits `/sign-up`, picks username, generates passphrase (or types own)
-2. Browser: `crypto.subtle.generateKey({ECDH P-256})` → `{publicKey, privateKey}`
-3. Browser: PBKDF2(passphrase, salt, 600k) → KEK
-4. Browser: AES-GCM-wrap `privateKey` JWK with KEK → `{ciphertext, iv, salt}`
-5. POST `/api/auth/sign-up` with `{username, passphraseHash, pubKey, encPrivKey}`
-6. Server stores all four — never sees plaintext passphrase or unwrapped privkey
-7. Session cookie set; redirect to `/dashboard`
-8. IndexedDB caches the unwrapped privateKey for the session
+1. Visits `/sign-up` (optionally with `?username=` prefill from FinalCTA)
+2. Step 1: type `@username`, debounced `/api/user/check-username` lookups
+3. Step 2: passphrase auto-generated via diceware (6 words, ~54 bits) — user can regenerate, copy, or override. Strength meter for custom phrases. Must check "I saved this" box.
+4. Step 3 (creating): browser generates ECDH P-256 keypair → derives KEK via PBKDF2-SHA256 × 600k → wraps privKey under KEK → POSTs `{username, passphrase, pubKey, encPrivKey}`
+5. Server: rate limit → validate → bcryptjs hash (cost 10, ~115ms) → insert → set HS256 cookie → respond
+6. Client caches unwrapped privKey in IndexedDB → redirect to `/dashboard`
 
-### Flow 3: Recipient — read inbox
+### Flow 3: Recipient — signin
 
-1. Loads `/dashboard` (server-rendered shell only — message list arrives via client fetch)
-2. Browser unwraps `encPrivKey` with stored session KEK (or prompts for passphrase if KEK expired)
-3. Fetches `/api/messages` → list of `{id, ciphertext, iv, ephemeralPubKey, mood, senderHash, ...}`
-4. For each message: ECDH(privateKey, ephemeralPubKey) → shared secret → AES decrypt → plaintext
-5. Client-side safety filter scans for slurs/doxxing/self-harm patterns → flags visually
-6. Renders three-pane: inbox list (filterable: all/new/fav/⚠) → reader → sidebar (mood-week, top hashes, Bindu+ upsell)
-7. Mood reactions (POST `/api/reactions`), favorite, mute hash, story export — all client-driven
+1. `/sign-in`: username + passphrase
+2. Server: bcryptjs.compare (dummy hash on miss to prevent timing-based username enumeration) → sets cookie → returns `{uid, isStaff, isAdmin, encPrivKey}`
+3. Client: derive KEK from passphrase + returned salt → unwrap privKey → cache in IndexedDB → redirect
 
-### Flow 4: Flag / report
+### Flow 4: Recipient — open inbox
 
-1. Recipient hits ⚠ on a message they've already decrypted
-2. Browser POSTs `/api/messages/flag` with `{messageId, reportedPlaintext, reason, note?}` (recipient is voluntarily sharing the plaintext they already have)
-3. Server creates `flags` row → message marked `isFlagged`
-4. Staff sees it in `/staff` queue with the plaintext the reporter shared
-5. Staff resolves (`flags.status` → `resolved` | `dismissed`) and optionally soft-deletes the message
+1. `/dashboard` server-renders user info + applies theme class
+2. Client `Inbox` checks IndexedDB for unwrapped privKey
+   - If present: skip to step 4
+   - If absent: render `UnlockGate` (prompt passphrase, derive KEK, unwrap, cache, continue) — covers private-mode / cleared-data / new-device cases without forcing full sign-in
+3. Fetch `GET /api/messages` → ciphertext + metadata + reactions + muted hashes
+4. Parallel decrypt: for each message, `decryptFromSender(encrypted, privKey)`
+5. Run `safety-filter.classify()` on each plaintext → clean / warn / hide
+6. Render: 4-pane layout (Sidebar / MessageList / MessageReader / RightPanel)
+7. Optimistic mutations: mark-read on select, favorite, mute hash, react, delete
 
-### Flow 5: Staff (isStaff = true)
+### Flow 5: Recipient — export to story
 
-1. Signs in normally, `/staff` route now visible
-2. Queue: flagged messages sorted by reason severity (self_harm > doxxing > harassment > spam > inappropriate > other)
-3. Each row: hashed sender, reported plaintext, reporter's note, reason
-4. Actions: dismiss flag, resolve+delete message, ban sender hash globally, escalate (notify recipient with resources)
+1. Open a decrypted message in MessageReader
+2. Click ↗ "Export to story"
+3. `renderStoryCard({plaintext, mood, senderHash, username, theme})` runs in-browser
+4. Reads theme tokens via `getComputedStyle` of a probe element
+5. Draws to 1080×1920 canvas, returns PNG blob
+6. Modal shows scaled preview
+7. Click Share/download → Web Share API if available (iOS/Android native sheet), else `<a download>`
 
-### Flow 6: Admin (isAdmin = true)
+### Flow 6: Recipient — flag a message (Phase 8 surface; data model present)
 
-1. Signs in normally, `/admin` route now visible
-2. Stats: DAU, message volume, flag volume, plan distribution
-3. Users: search, ban/unban, delete, promote to staff/admin
-4. Banned IPs: list, add, remove
-5. Audit log: every admin/staff action
+1. User clicks ⚠ on a decrypted message
+2. Their browser POSTs `/api/messages/flag` with `{messageId, reportedPlaintext, reason, note?}` (voluntary plaintext share)
+3. Server inserts into `flags` table, marks message `isFlagged`
+4. Staff sees it in `/staff` queue
+5. Staff resolves with status + optional soft-delete
 
 ---
 
@@ -154,84 +180,52 @@
 
 > Drizzle / PostgreSQL. UUIDs everywhere. JSONB for JWK key material.
 
-**Tables (v1):**
+**v1 tables (in active use):** `users`, `messages`, `mutedHashes`, `reactions`, `flags` (Phase 8 surface), `bannedIps` (Phase 9), `auditLog` (Phase 9).
 
-```ts
-users             // username, passphraseHash, pubKey (JWK), encPrivKey (wrapped),
-                  // displayName, bio, theme, plan, isStaff, isAdmin, isBanned, createdAt
-messages          // recipientId, ciphertext, iv, ephemeralPubKey (JWK), mood,
-                  // senderHash, isRead, isFavorited, isFlagged, isDeleted, deletedBy, createdAt
-muted_hashes      // (userId, senderHash) — composite PK, recipient blocks repeat sender
-reactions         // messageId, emoji — unique per (messageId, emoji); user reacting is implied
-flags             // messageId, reporterId, reportedPlaintext, reason, note, status,
-                  // resolvedBy, resolvedAt, resolverNote
-banned_ips        // ip, reason, bannedBy
-audit_log         // actorId, action, targetType, targetId, metadata (jsonb)
-```
+**v2 tables (defined, no surface yet):** `groups`, `group_members`, `subscriptions`.
 
-**Tables (v2, schema-ready):**
+Full Drizzle definitions live in `lib/db/schema.ts`. Highlights:
 
-```ts
-groups            // ownerId, slug, name, pubKey (JWK)
-group_members    // groupId, userId, encGroupPrivKey (wrapped to member pubkey)
-subscriptions    // userId, plan, startedAt, expiresAt, externalId
-```
-
-**Enums:** `theme` (sunset|acid|dream), `plan` (free|plus), `flag_reason` (harassment|doxxing|self_harm|spam|inappropriate|other), `flag_status` (pending|escalated|resolved|dismissed)
-
-Full Drizzle definitions live in `lib/db/schema.ts`.
+- `users.pubKey` is JSONB JWK; `users.encPrivKey` is `{ciphertext, iv, salt}` — AES-256-GCM wrapped under PBKDF2-derived KEK.
+- `messages` stores ciphertext only — never plaintext. Indexed by `(recipientId, createdAt)` and `(recipientId, senderHash)`.
+- `mutedHashes` has a composite PK `(userId, senderHash)` — silent-drop checks are a single PK lookup.
+- `reactions` has `UNIQUE (messageId, emoji)` — reacting is idempotent.
+- `flags.reportedPlaintext` holds plaintext only when a recipient voluntarily flags — the only way staff ever see content.
 
 ---
 
 ## API Routes
 
-> All routes use `export const runtime = 'edge'`.
+> All routes use `export const runtime = 'edge'`. 11 routes total.
 
 ### Public (no auth)
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/api/pubkey/[username]` | Returns `{pubKey, recipientId}` for the sender to encrypt against |
-| POST | `/api/messages` | Send anon message. IP ban → rate limit → mute check → insert |
-| POST | `/api/auth/sign-up` | `{username, passphraseHash, pubKey, encPrivKey}` → session cookie |
-| POST | `/api/auth/sign-in` | `{username, passphraseHash}` → session cookie |
-| POST | `/api/auth/sign-out` | Clears session cookie |
+| GET | `/api/pubkey/[username]` | Returns `{recipientId, username, displayName, bio, theme, pubKey}`. Banned → 404. 60s cache. |
+| POST | `/api/messages` | Anonymous send. Rate limit 5/10min. IP ban. Silent mute drop. |
+| POST | `/api/auth/sign-up` | `{username, passphrase, pubKey, encPrivKey}` → 201 + cookie. Rate limit 10/h. |
+| POST | `/api/auth/sign-in` | `{username, passphrase}` → 200 + cookie + `encPrivKey`. Rate limit 20/15min. Dummy-bcrypt on miss for timing safety. |
+| POST | `/api/auth/sign-out` | Clears cookie. |
+| GET | `/api/auth/me` | Session info `{uid, username, isStaff, isAdmin}` or `{ok: false}`. |
+| GET | `/api/user/check-username` | `?u=...` → `{available, reason}`. Rate limit 60/min. |
 
 ### Recipient (session required)
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/api/messages` | Inbox. Returns ciphertext + metadata. Decryption client-side. |
-| PATCH | `/api/messages/[id]` | `{isRead?, isFavorited?}` |
-| DELETE | `/api/messages/[id]` | Soft delete (recipient-set deletedBy='recipient') |
-| POST | `/api/messages/flag` | `{messageId, reportedPlaintext, reason, note?}` |
-| POST | `/api/reactions` | `{messageId, emoji}` |
-| DELETE | `/api/reactions/[id]` | Remove reaction |
-| POST | `/api/mutes` | `{senderHash}` |
-| DELETE | `/api/mutes/[hash]` | Unmute |
-| GET | `/api/user/me` | Current user info |
-| PATCH | `/api/user/me` | `{theme?, displayName?, bio?}` |
-| POST | `/api/user/rotate-passphrase` | Re-wrap encPrivKey with new KEK derived from new passphrase |
+| GET | `/api/messages` | Inbox: `?limit=50&before=ISO`. Returns ciphertext + metadata + grouped reactions + muted hash list. |
+| PATCH | `/api/messages/[id]` | `{isRead?, isFavorited?}`. Ownership-checked. |
+| DELETE | `/api/messages/[id]` | Soft delete (deletedBy='recipient'). |
+| POST | `/api/reactions` | `{messageId, emoji}`. Idempotent on unique idx. |
+| DELETE | `/api/reactions` | `?messageId=&emoji=`. |
+| POST | `/api/mutes` | `{senderHash}`. Idempotent. |
+| DELETE | `/api/mutes` | `?hash=`. |
+| GET | `/api/user/encrypted-key` | Returns wrapped privKey for UnlockGate. |
 
-### Staff (isStaff=true)
+### Staff (Phase 8 — schema present, routes pending)
 
-| Method | Path | Description |
-|---|---|---|
-| GET | `/api/staff/flags` | `?status=pending\|resolved\|...` |
-| PATCH | `/api/staff/flags/[id]` | `{status, resolverNote?, deleteMessage?}` |
-
-### Admin (isAdmin=true)
-
-| Method | Path | Description |
-|---|---|---|
-| GET | `/api/admin/stats` | Platform stats (DAU, messages/day, flag volume, plan dist) |
-| GET | `/api/admin/users` | `?page=&search=&filter=` — paginated 25/page |
-| PATCH | `/api/admin/users/[id]` | `{isStaff?, isAdmin?, isBanned?, bannedReason?}` |
-| DELETE | `/api/admin/users/[id]` | Hard delete + cascade |
-| GET | `/api/admin/banned-ips` | List |
-| POST | `/api/admin/banned-ips` | Add |
-| DELETE | `/api/admin/banned-ips/[id]` | Remove |
-| GET | `/api/admin/audit-log` | Append-only action log |
+### Admin (Phase 9 — schema present, routes pending)
 
 ---
 
@@ -242,28 +236,32 @@ Full Drizzle definitions live in `lib/db/schema.ts`.
 | `DATABASE_URL` | ✅ | Neon pooled connection (app runtime) |
 | `DATABASE_URL_UNPOOLED` | ✅ (migrations only) | Neon direct connection (drizzle-kit) |
 | `NEXT_PUBLIC_APP_URL` | ✅ | Public base URL |
-| `SESSION_SECRET` | ✅ | HMAC key for signing session cookies (32 bytes) |
-| `UPSTASH_REDIS_REST_URL` | ✅ | Upstash REST endpoint |
-| `UPSTASH_REDIS_REST_TOKEN` | ✅ | Upstash auth token |
+| `SESSION_SECRET` | ✅ | HMAC key for signing session cookies (32+ bytes) |
+| `UPSTASH_REDIS_REST_URL` | ✅ (prod) | Upstash REST endpoint |
+| `UPSTASH_REDIS_REST_TOKEN` | ✅ (prod) | Upstash auth token |
+| `BINDU_ENABLE_LAB` | optional | If `1` in production, exposes `/lab/crypto` |
+
+In dev, missing Upstash env causes rate-limit to fall back to per-worker in-memory map.
 
 ---
 
 ## Phases & Timeline
 
-| Phase | Name | Status | Key Tasks |
-|---|---|---|---|
-| 0 | Scaffold | ✅ | Next 16, Drizzle schema, theme tokens, CF Pages config, lazy DB, env shape |
-| 1 | Landing + design system | ✅ | All sections ported, theme switcher + dark toggle, live demo widget |
-| 2 | Crypto core | ✅ | `lib/crypto/` — keypair, hybrid encrypt/decrypt, PBKDF2 KDF, sender-hash, browser lab page |
-| 3 | Auth | ✅ | HS256 session cookies, passphrase signup/signin, IndexedDB key cache, route guards, diceware generator |
-| 4 | Send flow | ✅ | `/u/[username]`, pubkey fetch, encrypt-in-browser, POST `/api/messages`, IP ban + rate limit, silent mute drop |
-| 5 | Recipient inbox | ✅ | 3-pane dashboard, decrypt-in-browser, mood reactions, mute by hash, on-device safety filter, UnlockGate, top-hashes sidebar |
-| 6 | Story export | ✅ | Render any message to 1080×1920 PNG via canvas, theme-matched, preview modal + Web Share API fallback to download |
-| 7 | Settings | ⏳ | Theme picker, passphrase rotation, blocked-hashes list, recovery info |
-| 8 | Staff dashboard | ⏳ | Flag queue, resolve/dismiss, escalation |
-| 9 | Admin dashboard | ⏳ | Stats, users CRUD, banned IPs CRUD, audit log |
-| v2 | Group dots | ⏳ | Shared-key groups, member key wrapping |
-| v2 | Bindu+ | ⏳ | Stripe wiring, feature gates (200→500 chars, custom emoji) |
+| Phase | Name | Status | Commit | Key Tasks |
+|---|---|---|---|---|
+| 0 | Scaffold | ✅ | `b5130d2` | Next 16, Drizzle schema, theme tokens, CF Pages config, lazy DB, env shape |
+| 1 | Landing + design system | ✅ | `368b2f0` | All 10 sections, theme switcher + dark toggle, live demo widget |
+| 2 | Crypto core | ✅ | `f5ea0f2` | `lib/crypto/` — keypair, hybrid, PBKDF2 KDF, sender-hash, browser lab |
+| 3 | Auth | ✅ | `0308333` | HS256 sessions, passphrase signup/signin, IndexedDB key cache, route guards, diceware |
+| 4 | Send flow | ✅ | `5d86b3f` | `/u/[username]`, pubkey fetch, encrypt-in-browser, POST, IP ban + rate limit, silent mute drop |
+| 5 | Recipient inbox | ✅ | `3b95d72` | 4-pane dashboard, decrypt-in-browser, mood reactions, mute, on-device safety filter, UnlockGate |
+| 6 | Story export | ✅ | `8575a5d` | 1080×1920 PNG renderer, theme-matched, Web Share API + download |
+| 7 | Settings | ⏳ | — | Theme picker, display name + bio, passphrase rotation, blocked hashes, danger zone |
+| 8 | Staff dashboard | ⏳ | — | Flag queue, resolve / dismiss / escalate |
+| 9 | Admin dashboard | ⏳ | — | Platform stats, users CRUD, banned IPs CRUD, audit log |
+| v2 | Group dots | ⏳ | — | Shared-key groups, member key wrapping |
+| v2 | Bindu+ | ⏳ | — | Stripe wiring, feature gates (200→500 chars, custom emoji) |
+| v2 | X25519 migration | ⏳ | — | Replace P-256 once browser support is universal |
 
 ---
 
@@ -271,14 +269,14 @@ Full Drizzle definitions live in `lib/db/schema.ts`.
 
 > Phase 7 — settings.
 
-1. [ ] `/settings` page — protected, server component
-2. [ ] Theme picker — sunset/acid/dream, persist via PATCH /api/user/me, also update body className
-3. [ ] Display name + bio fields (optional, public on /u/[username])
-4. [ ] Passphrase rotation — re-derive KEK with new passphrase, re-wrap privKey, update via PATCH /api/user/me
-5. [ ] Blocked hashes list — show all mutes with unmute buttons
-6. [ ] "Lock now" surfaced as a setting (already in sidebar — link it from settings too)
-7. [ ] Danger zone: delete account (cascades through schema)
-8. [ ] Recovery info — "your passphrase is your only key" reminder + button to download recovery sheet
+1. [ ] `/settings` protected page with grouped sections
+2. [ ] Theme picker — sunset/acid/dream — calls PATCH `/api/user/me`, updates body className
+3. [ ] Display name + bio — public on `/u/[username]`
+4. [ ] **Passphrase rotation** (the interesting one): derive new KEK → re-wrap privKey → atomic update of both `passphraseHash` and `encPrivKey` in one PATCH so a partial failure can't lock the user out
+5. [ ] Blocked hashes list — show all muted hashes with unmute buttons (already supported by `/api/mutes` DELETE)
+6. [ ] "Lock now" surfaced as a setting card (already on Sidebar)
+7. [ ] Danger zone — delete account (cascades through schema, requires passphrase re-confirmation)
+8. [ ] Recovery info — reminder that there is no passphrase recovery
 
 ---
 
@@ -302,7 +300,7 @@ Full Drizzle definitions live in `lib/db/schema.ts`.
 - **2026-05-31** — Phase 5: messages are fetched as ciphertext + metadata and decrypted in the browser using the cached private key. Failed decryption renders an inline error rather than blocking the inbox.
 - **2026-05-31** — Safety filter: doxxing-pattern + self-harm-cue detection runs over plaintext after decryption. Hide-by-default for any phone/address/self-harm/slur hit, with a "Show anyway" reveal button. Slur list is a typed extension point — needs localization (Bangla + English) we can't curate inline.
 - **2026-05-31** — UnlockGate: when session cookie is valid but IndexedDB is empty (data cleared / private mode / new device), the dashboard prompts for passphrase and re-unwraps without forcing a full sign-in.
-- **2026-05-31** — Inbox UI is 4-column at ≥1100px (sidebar / list / reader / right panel), collapses to 3-column ≤1100px (drops right panel), and stacks at ≤800px. Right panel duplicates the share link + shows mood-of-week + top sender hashes.
+- **2026-05-31** — Inbox UI is 4-column at ≥1100px (sidebar / list / reader / right panel), collapses to 3-column ≤1100px (drops right panel), and stacks at ≤800px.
 - **2026-05-31** — All inbox PATCH/DELETE operations are optimistic — UI updates first, request fires-and-forgets. Reconciliation on errors is deferred to v2 (network-blip handling).
 - **2026-05-31** — Phase 6: story export renders entirely on the client. The card never touches the server — even our server-side rendering wouldn't see plaintext because of E2E. Adds zero new npm dependencies (uses the browser's native Canvas2D API).
 - **2026-05-31** — Story card reads theme tokens via a hidden probe element with `getComputedStyle`, so the export automatically matches whatever theme the recipient is currently viewing. Falls back to sunset defaults if any token is unset.

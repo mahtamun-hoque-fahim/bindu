@@ -1,7 +1,7 @@
 # DESIGN_GUIDE.md — Bindu
 
 > Living design system reference. Updated when new components or tokens are added.
-> Last updated: 2026-05-31
+> Last updated: 2026-06-01
 
 ---
 
@@ -9,13 +9,15 @@
 
 Bindu ships **three named themes**, each light-first with a `.dark` modifier. Themes are applied by class on `<body>`: `theme-sunset` (default), `theme-acid`, `theme-dream`. Dark mode adds the `dark` class alongside.
 
-Every token below is set per-theme as a CSS custom property. Components read tokens, never hard-coded colors.
+Every token below is set per-theme as a CSS custom property. Components read tokens, never hard-coded colors. The `ThemeProvider` (`components/providers/ThemeProvider.tsx`) is a Client Component that persists choices to `localStorage` (`bindu:theme`, `bindu:dark`).
 
 | Theme | Vibe | Accent | Display font | Radius |
 |---|---|---|---|---|
 | **sunset** *(default)* | Warm cream, coral, friendly | `#E85D3B` | Bricolage Grotesque | `22px` |
 | **acid** | Brutalist, high-contrast, lime | `#CCFF00` | Space Grotesk | `6px` |
 | **dream** | Soft, romantic, lavender | `#B47AE0` | Instrument Serif | `30px` |
+
+The recipient's chosen theme cascades to the public `/u/[username]` send page automatically — senders see the recipient's space, not the brand default.
 
 ---
 
@@ -78,7 +80,7 @@ All loaded from Google Fonts in `app/layout.tsx`. Read fonts via `var(--font-dis
 
 | Name | Size | Line Height | Weight | Usage |
 |---|---|---|---|---|
-| `hero` | `clamp(44px, 6vw + 12px, 120px)` | 0.96 | 700 | Hero headline |
+| `hero` | `clamp(44px, 9vw, 120px)` | 0.96 | 700 | Landing hero headline |
 | `h1` | `clamp(38px, 5vw, 64px)` | 1.0 | 700 | Section heading |
 | `h2` | `26–30px` | 1.05 | 600 | Card heading |
 | `h3` | `22–24px` | 1.1 | 600 | Sub-heading |
@@ -92,6 +94,8 @@ Negative letter-spacing on display sizes: `-0.025em` to `-0.04em`. Italics in di
 
 ## Spacing
 
+Container max width: `1240px`. Container side padding: `32px` desktop, `20px` mobile.
+
 | Token | Px | Usage |
 |---|---|---|
 | `4` | 4 | icon ↔ label tight |
@@ -104,8 +108,6 @@ Negative letter-spacing on display sizes: `-0.025em` to `-0.04em`. Italics in di
 | `48–60` | | section gap small |
 | `96` | 96 | section padding (desktop) |
 | `64` | 64 | section padding (mobile, `≤720px`) |
-
-Container max width: `1240px`. Container side padding: `32px` desktop, `20px` mobile.
 
 ---
 
@@ -125,16 +127,15 @@ Pills always `99px`. Avatars/dots always `50%`.
 
 ## Shadows
 
-```css
-shadow-card: 0 1px 0 var(--line);
-shadow-lift: 0 8px 24px -8px var(--ink);                 /* btn hover */
-shadow-modal: 0 20px 60px -30px var(--ink);              /* live demo, modals */
-shadow-phone: 0 40px 80px -40px var(--ink);              /* phone mock */
+```
+shadow-card:  0 1px 0 var(--line)
+shadow-lift:  0 8px 24px -8px var(--ink)         /* button hover */
+shadow-modal: 0 20px 60px -30px var(--ink)       /* live demo, story modal */
 ```
 
 ---
 
-## Components
+## Base primitives (in `globals.css`)
 
 ### `.btn`
 
@@ -144,11 +145,9 @@ shadow-phone: 0 40px 80px -40px var(--ink);              /* phone mock */
 <a class="btn accent">Accent — uses theme accent</a>
 ```
 
-Defined in `globals.css`. 14×22 padding, weight 600, `var(--radius)`. Hover lifts `-2px` and adds `shadow-lift`.
+14×22 padding, weight 600, `var(--radius)`. Hover lifts `-2px` + `shadow-lift`.
 
 ### `.bubble`
-
-Chat bubble — three variants:
 
 ```html
 <div class="bubble">Generic</div>
@@ -156,7 +155,7 @@ Chat bubble — three variants:
 <div class="bubble you">From recipient — ink bg, tail-right</div>
 ```
 
-Max-width 320px, padding `14px 18px`. Lines 1.4.
+Max-width 320px, padding `14px 18px`, lines 1.4. Used in landing LiveDemo and in the send-flow success state.
 
 ### `.eyebrow`
 
@@ -168,46 +167,97 @@ Small mono uppercase label, used to introduce every section:
 
 The leading `●` dot is part of the eyebrow content, not a generated marker.
 
-### `.dot`
+### `.dot` / `.dot-accent`
 
 ```html
-<span class="dot dot-accent" />   // accent-coloured dot
+<span class="dot dot-accent" />   <!-- accent-coloured dot -->
 ```
 
 `0.7em × 0.7em`, `currentColor` background unless `dot-accent` overrides.
 
 ### `.float-dot` and `.pulse`
 
-Decorative animation classes. `float-dot` uses 6s ease-in-out, `pulse` is a 2s shadow ring. Used on hero decorations and the send-confirmation animation.
+Decorative animation classes. `float-dot` uses 6s ease-in-out vertical bob, `pulse` is a 2s shadow ring. Used on hero decorations and send-confirmation animations.
 
 ### `.no-bar`
 
 Hides scrollbars on inner panels (`-webkit-scrollbar: none` + `scrollbar-width: none`).
 
+### `@keyframes spin`
+
+For the small spinning indicator used in the sign-up username check.
+
 ---
 
-## Dashboard primitives
+## Landing page composition
 
-Defined in dashboard scope, not `globals.css` yet (will be added when Phase 5 lands).
+The landing page is a stack of Server Components in `components/landing/`:
 
-| Class | Use |
+1. **TopNav** (Client) — theme picker (3 swatches) + dark toggle + Get-link CTA
+2. **Hero** — `clamp(44px, 9vw, 120px)` headline, floating decorative dots, embedded LiveDemo widget
+3. **Logos** — italicized group-chat names as social proof
+4. **HowItWorks** — 4 step cards on `var(--bg-2)`
+5. **Features** — bento grid (4 small + 2 big cards with custom visuals: `LinkVisual`, `MuteVisual`)
+6. **Privacy** — 4 pillars on inverted dark background (`--ink` bg, `--bg` text)
+7. **DashboardsPreview** — 3 role tiles linking to dashboard/staff/admin
+8. **FAQ** — 6 questions, single-open accordion
+9. **FinalCTA** — large terminal headline with username input that pre-fills `/sign-up`
+10. **Footer** — 4-column nav + status line
+
+Responsive collapse (`globals.css`):
+
+- `≤900px`: hide nav middle links, stack feature grid to 1col
+- `≤720px`: stack Privacy columns, collapse Footer to 2cols
+- `≤1100px`: hide inbox right panel
+- `≤800px`: stack inbox sidebar to horizontal
+
+---
+
+## Inbox primitives (Phase 5)
+
+Defined inline in `app/(dashboard)/dashboard/`:
+
+| Component | Use |
 |---|---|
-| `.dash` | Grid: 240px sidebar + 1fr main |
-| `.dash-side` | Sidebar — sticky, full height, bg-2 |
-| `.dash-link` | Nav item — pill on hover/active |
-| `.dash-link.active` | Active state — bg, border, weight 600 |
-| `.dash-top` | Sticky header bar with backdrop-blur |
-| `.dash-content` | Main scroll container, 28×32 padding |
-| `.stat` | KPI card — label / value / delta |
-| `.chip` | Pill: default, `.danger`, `.warn`, `.ok`, `.info` |
-| `.panel` | Card with `.panel-head` and `.panel-body` |
-| `.tbl` | Table with mono-uppercase headers |
+| `Sidebar` | 220px column. Brand mark · copy-link button · filter pills (Inbox, New, Starred, Flagged) with badge counts · staff/admin links if role · lock + sign-out |
+| `MessageList` | 360px column. Sticky header, scrollable cards. Each card: mood · `anon · #hash` · unread dot · ★ · ⚠ · timeAgo · 2-line preview. Selected card has left accent bar. Muted senders dim to 50%. |
+| `MessageReader` | Flexible center. Header (avatar · `anon · #hash` · received-time · isMuted chip) + actions (★ Favorite · ⊘ Mute · ↗ Export · × Delete). Body: SafetyBanner (warn/hide) · large display-font plaintext · reaction emoji ring · "react privately · only you see this" |
+| `RightPanel` | 300px. Share card (`var(--accent)` background, your link + copy/preview) · mood-of-the-week bars · top whisperers list · Bindu+ teaser locked card |
+| `UnlockGate` | Full-pane when IndexedDB empty: passphrase field + "Unlock" button |
+| `StoryExportModal` | Centered modal: scaled 1080×1920 preview · Share/download button |
 
 ---
 
-## Animation
+## Story export card (Phase 6)
 
-Default duration `.15–.2s` ease. Hover lifts use `translateY(-2px)` to `-4px`. Section reveals: no scroll-trigger animations in v1 — keep it calm.
+1080×1920 PNG rendered by `lib/canvas/story-card.ts`. Layout:
+
+```
+┌─────────────────────────────────────┐  ← full-bleed var(--bg)
+│  ●  decorative dots scattered       │
+│                                     │
+│  ●  bindu              (top-left)   │
+│                                     │
+│                                     │
+│   ╭───────────────────────────────╮ │  ← bubble card,
+│   │  ●  anon · whispered to you   │ │     var(--bubble), 60r
+│   │     #hash                     │ │
+│   │  ───────────────────────────  │ │
+│   │                               │ │
+│   │  🫶 your zine is criminally   │ │  ← adaptive font:
+│   │     underrated and your taste │ │     80→64→52→44 px
+│   │     in playlists carries me…  │ │
+│   │                               │ │
+│   │                               │ │
+│   │  bindu.app/maya.k             │ │  ← inside card footer
+│   ╰───────────────────────────────╯ │
+│                                     │
+│       ● end-to-end encrypted        │
+│   send anonymous whispers @ bindu.app│
+└─────────────────────────────────────┘
+```
+
+Theme tokens read via `getComputedStyle` of a hidden probe element. Brand mark always present, never strippable. Watermark "send anonymous whispers @ bindu.app" can't be removed by user editing the canvas in the modal (modal shows preview only — actual blob is fresh on each render).
 
 ---
 
@@ -217,24 +267,28 @@ Bindu uses a small, friendly icon vocabulary — no icon font, no SVG sprite. Mo
 
 - `●` — the brand dot motif (everywhere)
 - `→` — go-forward
-- `↗` — copy / external
+- `↗` — copy / external / story-export
 - `★ ☆` — favourite / unfavourite
-- `⌕` — search
-- `⌘K` — keyboard hint
 - `⊘` — mute
-- `⚠` — flag
+- `⚠` — flag / safety
+- `×` — close / delete
+- `+` — accordion open
 - Mood emojis: 🫶 🔥 👀 😭 💀 ✨ 🤝 🥲
 
 Avoid Material/Heroicons — the design intentionally reads like a friend's notebook.
 
 ---
 
-## Responsive
+## Animation
 
-- Mobile-first only for spacing (sections `64px` padding `≤720px`).
-- Hero headlines use `clamp()` so they scale without breakpoints.
-- Dashboards collapse `.dash` to single column `<900px`; sidebar becomes horizontal nav.
-- Bento `Features` grid stays 3-col `≥1100px`, falls to 1-col `<700px`.
+Default duration `.15–.2s` ease. Hover lifts use `translateY(-2px)` to `-4px`. Section reveals: no scroll-trigger animations in v1 — keep it calm.
+
+Send-flow animations:
+
+- Sending state: `.pulse` (2s box-shadow ring out)
+- Sent state: bubble fade-in (passive)
+
+Story export modal: preview fades in as soon as the canvas blob resolves.
 
 ---
 
@@ -254,8 +308,10 @@ Persists in `localStorage` under `bindu:dark`. Default: light. The dark variant 
 
 | File | What lives there |
 |---|---|
-| `app/globals.css` | All theme tokens + base primitives (.btn, .bubble, .eyebrow, .dot, animations) |
-| `app/layout.tsx` | Google Fonts preload, sets default theme on `<body>` |
-| `components/ui/` | Reusable primitives (Phase 1+) |
-| `components/landing/` | Landing page sections (Phase 1) |
-| `components/dashboard/`, `components/staff/`, `components/admin/` | Role-specific UI (Phase 5/8/9) |
+| `app/globals.css` | All theme tokens + base primitives (.btn, .bubble, .eyebrow, .dot, animations) + responsive layer |
+| `app/layout.tsx` | Google Fonts preload, sets default theme on `<body>`, wraps in ThemeProvider |
+| `components/providers/ThemeProvider.tsx` | Theme + dark state context, persists to localStorage |
+| `components/landing/*.tsx` | 10 landing sections |
+| `app/(dashboard)/dashboard/*.tsx` | Inbox UI primitives (Sidebar/List/Reader/RightPanel/UnlockGate/StoryExportModal) |
+| `app/u/[username]/SendForm.tsx` | Public composer — three-state UI (compose/sending/sent) |
+| `lib/canvas/story-card.ts` | Pure browser renderer for the 1080×1920 PNG |
