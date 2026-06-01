@@ -244,3 +244,27 @@ section { padding: 96px 0; }
     grid-column: 1 / -1;
   }
 }
+
+/* ─── Dashboard responsive ──────────────────────────────────────────────── */
+@media (max-width: 1100px) {
+  /* Hide the right panel on medium widths */
+  .dash-grid {
+    grid-template-columns: 220px 340px 1fr !important;
+  }
+  .dash-grid > aside:last-child {
+    display: none !important;
+  }
+}
+@media (max-width: 800px) {
+  /* Collapse sidebar into a horizontal bar, stack list/reader */
+  .dash-grid {
+    grid-template-columns: 1fr !important;
+    grid-template-rows: auto auto auto !important;
+  }
+  .dash-side {
+    flex-direction: row !important;
+    height: auto !important;
+    align-items: center;
+    overflow-x: auto;
+  }
+}

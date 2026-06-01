@@ -257,7 +257,7 @@ Full Drizzle definitions live in `lib/db/schema.ts`.
 | 2 | Crypto core | ✅ | `lib/crypto/` — keypair, hybrid encrypt/decrypt, PBKDF2 KDF, sender-hash, browser lab page |
 | 3 | Auth | ✅ | HS256 session cookies, passphrase signup/signin, IndexedDB key cache, route guards, diceware generator |
 | 4 | Send flow | ✅ | `/u/[username]`, pubkey fetch, encrypt-in-browser, POST `/api/messages`, IP ban + rate limit, silent mute drop |
-| 5 | Recipient inbox | ⏳ | 3-pane dashboard, decrypt-in-browser, mood reactions, mute by hash, on-device safety filter |
+| 5 | Recipient inbox | ✅ | 3-pane dashboard, decrypt-in-browser, mood reactions, mute by hash, on-device safety filter, UnlockGate, top-hashes sidebar |
 | 6 | Story export | ⏳ | Render message to 1080×1920 PNG via canvas |
 | 7 | Settings | ⏳ | Theme picker, passphrase rotation, blocked-hashes list, recovery info |
 | 8 | Staff dashboard | ⏳ | Flag queue, resolve/dismiss, escalation |
@@ -269,18 +269,14 @@ Full Drizzle definitions live in `lib/db/schema.ts`.
 
 ## Next Steps
 
-> Phase 5 — recipient inbox.
+> Phase 6 — story export.
 
-1. [ ] `/api/messages` GET — list recipient's messages, paginated, ciphertext + metadata
-2. [ ] `/api/messages/[id]` PATCH — `{isRead?, isFavorited?}`
-3. [ ] `/api/messages/[id]` DELETE — soft delete
-4. [ ] `/api/reactions` POST / DELETE
-5. [ ] `/api/mutes` POST / DELETE
-6. [ ] `app/(dashboard)/dashboard/` — replace placeholder with 3-pane layout (list / reader / sidebar)
-7. [ ] `Inbox` client component — decrypts in-browser, virtualized list, filter chips (all / new / fav / ⚠)
-8. [ ] `MessageReader` — selected-message detail with mood reactions, mute hash, favorite, delete
-9. [ ] `Sidebar` — mood-of-the-week stats, top sender hashes, Bindu+ teaser
-10. [ ] `lib/safety-filter.ts` — client-side word filter (slurs / doxxing patterns / self-harm)
+1. [ ] `lib/canvas/story-card.ts` — render a single message to a 1080×1920 vertical canvas
+2. [ ] Embed the message's mood emoji, sender hash, recipient's theme palette
+3. [ ] Brand mark (small `● bindu` corner)
+4. [ ] Trigger from MessageReader — button → download blob
+5. [ ] Test that emoji + theme + text wrap correctly on canvas
+6. [ ] Watermark: small bindu.app URL footer
 
 ---
 
@@ -301,3 +297,8 @@ Full Drizzle definitions live in `lib/db/schema.ts`.
 - **2026-05-31** — Banned users 404 to senders, not 403, so ban status doesn't leak to the wider internet.
 - **2026-05-31** — `/u/[username]` applies the recipient's chosen theme (sunset/acid/dream) to the sender's view, so the send page feels like the recipient's space.
 - **2026-05-31** — `/api/messages` POST: validation runs BEFORE DB checks so malformed requests fail fast and informatively even if the DB is unreachable. Rate limit is the only DB-free gate that runs first (5 req/10min/IP, in-memory in dev, Upstash in prod).
+- **2026-05-31** — Phase 5: messages are fetched as ciphertext + metadata and decrypted in the browser using the cached private key. Failed decryption renders an inline error rather than blocking the inbox.
+- **2026-05-31** — Safety filter: doxxing-pattern + self-harm-cue detection runs over plaintext after decryption. Hide-by-default for any phone/address/self-harm/slur hit, with a "Show anyway" reveal button. Slur list is a typed extension point — needs localization (Bangla + English) we can't curate inline.
+- **2026-05-31** — UnlockGate: when session cookie is valid but IndexedDB is empty (data cleared / private mode / new device), the dashboard prompts for passphrase and re-unwraps without forcing a full sign-in.
+- **2026-05-31** — Inbox UI is 4-column at ≥1100px (sidebar / list / reader / right panel), collapses to 3-column ≤1100px (drops right panel), and stacks at ≤800px. Right panel duplicates the share link + shows mood-of-week + top sender hashes.
+- **2026-05-31** — All inbox PATCH/DELETE operations are optimistic — UI updates first, request fires-and-forgets. Reconciliation on errors is deferred to v2 (network-blip handling).

@@ -1,132 +1,87 @@
 import { getDb } from '@/lib/db'
-import { messages, users, bannedIps, mutedHashes } from '@/lib/db/schema'
-import { and, eq } from 'drizzle-orm'
-import { getLimiter, getClientIp } from '@/lib/rate-limit'
+import { messages, reactions, mutedHashes } from '@/lib/db/schema'
+import { and, desc, eq, lt } from 'drizzle-orm'
+import { requireSessionApi } from '@/lib/auth/server'
+
+export { POST } from './post'
 
 export const runtime = 'edge'
 
-// Allowed mood emojis (matches the prototype + landing widget).
-const MOODS = new Set(['🫶', '🔥', '👀', '😭', '💀', '✨', '🤝', '🥲'])
-
-// Server-side ceiling on ciphertext size. A 500-char UTF-8 message
-// becomes ~700 bytes encrypted → ~1KB base64. 2048 chars is generous.
-const MAX_CIPHERTEXT_B64 = 2048
-const MAX_IV_B64 = 24 // 12 bytes → ~16 chars + padding
-
-type Body = {
-  recipientId?: string
-  ciphertext?: string
-  iv?: string
-  ephemeralPubKey?: JsonWebKey
-  senderHash?: string
-  mood?: string | null
-}
-
-function bad(error: string, status = 400) {
-  return new Response(JSON.stringify({ error }), {
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
     status,
     headers: { 'content-type': 'application/json' },
   })
 }
 
-// Returned to BOTH genuinely-accepted messages AND silently-dropped
-// muted-hash messages, so a sender can't probe whether they're muted.
-function fakeOk() {
-  return new Response(JSON.stringify({ ok: true }), {
-    status: 201,
-    headers: { 'content-type': 'application/json' },
-  })
-}
+export async function GET(req: Request) {
+  const session = await requireSessionApi()
+  if (session instanceof Response) return session
 
-export async function POST(req: Request) {
-  const ip = getClientIp(req)
-
-  // 1. Rate limit FIRST — limiter is in-memory in dev, doesn't require DB
-  const limiter = getLimiter('send', 5, '10 m')
-  const { success } = await limiter.limit(ip)
-  if (!success) {
-    return bad("Slow down — you're sending too fast.", 429)
-  }
-
-  // 2. Parse + validate envelope shape (DB-free, fast)
-  let body: Body
-  try {
-    body = (await req.json()) as Body
-  } catch {
-    return bad('Invalid JSON')
-  }
-
-  const { recipientId, ciphertext, iv, ephemeralPubKey, senderHash, mood } =
-    body
-
-  if (
-    !recipientId ||
-    typeof recipientId !== 'string' ||
-    !ciphertext ||
-    typeof ciphertext !== 'string' ||
-    !iv ||
-    typeof iv !== 'string' ||
-    !ephemeralPubKey ||
-    typeof ephemeralPubKey !== 'object' ||
-    !senderHash ||
-    typeof senderHash !== 'string'
-  ) {
-    return bad('Missing fields')
-  }
-
-  if (ciphertext.length > MAX_CIPHERTEXT_B64) return bad('Message too long')
-  if (iv.length > MAX_IV_B64) return bad('Invalid IV')
-  if (!/^[a-f0-9]{4}$/.test(senderHash)) return bad('Invalid sender hash')
-  if ((ephemeralPubKey as JsonWebKey).kty !== 'EC')
-    return bad('Invalid ephemeral pubKey')
-  if (mood != null && (typeof mood !== 'string' || !MOODS.has(mood)))
-    return bad('Invalid mood')
-
-  // 3. DB-backed checks
   const db = getDb()
-  if (!db) return bad('unavailable', 503)
+  if (!db) return json({ error: 'unavailable' }, 503)
 
-  // 3a. IP ban — fast no
-  if (ip !== 'unknown') {
-    const banned = await db.query.bannedIps.findFirst({
-      where: eq(bannedIps.ip, ip),
-      columns: { id: true },
-    })
-    if (banned) return bad('You have been blocked from sending messages.', 403)
+  const url = new URL(req.url)
+  const limit = Math.min(
+    100,
+    Math.max(1, Number(url.searchParams.get('limit') ?? '50')),
+  )
+  const before = url.searchParams.get('before') // ISO timestamp cursor
+
+  const baseConditions = and(
+    eq(messages.recipientId, session.uid),
+    eq(messages.isDeleted, false),
+  )
+  const where = before
+    ? and(baseConditions, lt(messages.createdAt, new Date(before)))
+    : baseConditions
+
+  const [rows, reactionRows, muted] = await Promise.all([
+    db.query.messages.findMany({
+      where,
+      orderBy: [desc(messages.createdAt)],
+      limit,
+      columns: {
+        id: true,
+        ciphertext: true,
+        iv: true,
+        ephemeralPubKey: true,
+        mood: true,
+        senderHash: true,
+        isRead: true,
+        isFavorited: true,
+        isFlagged: true,
+        createdAt: true,
+      },
+    }),
+    // All reactions to this user's messages (small table; OK to grab all)
+    db
+      .select({
+        messageId: reactions.messageId,
+        emoji: reactions.emoji,
+      })
+      .from(reactions)
+      .innerJoin(messages, eq(reactions.messageId, messages.id))
+      .where(eq(messages.recipientId, session.uid)),
+    db.query.mutedHashes.findMany({
+      where: eq(mutedHashes.userId, session.uid),
+      columns: { senderHash: true },
+    }),
+  ])
+
+  // Group reactions per messageId for ergonomic client merging
+  const reactionsByMsg: Record<string, string[]> = {}
+  for (const r of reactionRows) {
+    if (!reactionsByMsg[r.messageId]) reactionsByMsg[r.messageId] = []
+    reactionsByMsg[r.messageId].push(r.emoji)
   }
 
-  // 3b. Verify recipient exists + not banned
-  const recipient = await db.query.users.findFirst({
-    where: eq(users.id, recipientId),
-    columns: { id: true, isBanned: true },
+  return json({
+    messages: rows.map((m) => ({
+      ...m,
+      reactions: reactionsByMsg[m.id] ?? [],
+    })),
+    mutedHashes: muted.map((m) => m.senderHash),
+    hasMore: rows.length === limit,
   })
-  if (!recipient || recipient.isBanned) {
-    // 404 to obscure ban status to senders
-    return bad('Recipient not found', 404)
-  }
-
-  // 3c. Silent muted-hash drop — return fake-success.
-  // The sender shouldn't be able to detect that the recipient muted them.
-  // (If they could, they'd clear localStorage and get a new hash to evade.)
-  const muted = await db.query.mutedHashes.findFirst({
-    where: and(
-      eq(mutedHashes.userId, recipient.id),
-      eq(mutedHashes.senderHash, senderHash),
-    ),
-  })
-  if (muted) {
-    return fakeOk()
-  }
-
-  // 4. Insert
-  await db.insert(messages).values({
-    recipientId: recipient.id,
-    ciphertext,
-    iv,
-    ephemeralPubKey: ephemeralPubKey as JsonWebKey,
-    senderHash,
-    mood: mood || null,
-  })
-
-  return fakeOk()
 }
