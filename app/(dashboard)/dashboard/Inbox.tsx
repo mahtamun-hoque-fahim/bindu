@@ -222,6 +222,10 @@ export function Inbox({ session }: Props) {
     )
   }
 
+  function markFlagged(id: string) {
+    patchMessage(id, { isFlagged: true })
+  }
+
   // ─── Render based on phase ───────────────────────────────────────────────
 
   if (phase === 'checking-key') {
@@ -302,6 +306,7 @@ export function Inbox({ session }: Props) {
         onUnreact={(emoji) =>
           selected && removeReaction(selected.id, emoji)
         }
+        onFlagged={() => selected && markFlagged(selected.id)}
         isMuted={
           selected ? mutedHashes.has(selected.senderHash) : false
         }

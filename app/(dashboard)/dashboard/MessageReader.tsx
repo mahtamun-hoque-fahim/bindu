@@ -5,6 +5,7 @@ import { timeAgo } from '@/lib/utils'
 import { labelFor } from '@/lib/safety-filter'
 import { MOODS, type InboxMessage } from './types'
 import { StoryExportModal } from './StoryExportModal'
+import { FlagModal } from './FlagModal'
 import type { Theme } from '@/components/providers/ThemeProvider'
 
 type Props = {
@@ -18,6 +19,7 @@ type Props = {
   onUnmute: () => void
   onReact: (emoji: string) => void
   onUnreact: (emoji: string) => void
+  onFlagged: () => void
 }
 
 export function MessageReader({
@@ -31,10 +33,12 @@ export function MessageReader({
   onUnmute,
   onReact,
   onUnreact,
+  onFlagged,
 }: Props) {
   const [revealed, setRevealed] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
+  const [flagOpen, setFlagOpen] = useState(false)
 
   if (!message) {
     return (
@@ -147,6 +151,13 @@ export function MessageReader({
           icon="↗"
           onClick={() => setExportOpen(true)}
           disabled={message.plaintext === null}
+        />
+        <ActionButton
+          label="Flag for staff"
+          icon="⚠"
+          onClick={() => setFlagOpen(true)}
+          disabled={message.plaintext === null || message.isFlagged}
+          active={message.isFlagged}
         />
         <ActionButton
           label="Delete"
@@ -290,15 +301,24 @@ export function MessageReader({
       </div>
 
       {message.plaintext !== null && (
-        <StoryExportModal
-          open={exportOpen}
-          onClose={() => setExportOpen(false)}
-          plaintext={message.plaintext}
-          mood={message.mood}
-          senderHash={message.senderHash}
-          username={username}
-          theme={theme}
-        />
+        <>
+          <StoryExportModal
+            open={exportOpen}
+            onClose={() => setExportOpen(false)}
+            plaintext={message.plaintext}
+            mood={message.mood}
+            senderHash={message.senderHash}
+            username={username}
+            theme={theme}
+          />
+          <FlagModal
+            open={flagOpen}
+            onClose={() => setFlagOpen(false)}
+            onFlagged={onFlagged}
+            messageId={message.id}
+            plaintext={message.plaintext}
+          />
+        </>
       )}
     </div>
   )

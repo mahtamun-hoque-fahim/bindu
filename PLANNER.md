@@ -257,7 +257,7 @@ In dev, missing Upstash env causes rate-limit to fall back to per-worker in-memo
 | 5 | Recipient inbox | ✅ | `3b95d72` | 4-pane dashboard, decrypt-in-browser, mood reactions, mute, on-device safety filter, UnlockGate |
 | 6 | Story export | ✅ | `8575a5d` | 1080×1920 PNG renderer, theme-matched, Web Share API + download |
 | 7 | Settings | ✅ | — | `/settings` page, theme/displayName/bio update, atomic passphrase rotation, blocked-hashes list, lock-now, account deletion |
-| 8 | Staff dashboard | ⏳ | — | Flag queue, resolve / dismiss / escalate |
+| 8 | Staff dashboard | ✅ | — | Recipient flag flow, `/staff` queue + detail panes, resolve/dismiss/escalate, audit-log writes |
 | 9 | Admin dashboard | ⏳ | — | Platform stats, users CRUD, banned IPs CRUD, audit log |
 | v2 | Group dots | ⏳ | — | Shared-key groups, member key wrapping |
 | v2 | Bindu+ | ⏳ | — | Stripe wiring, feature gates (200→500 chars, custom emoji) |
@@ -267,14 +267,16 @@ In dev, missing Upstash env causes rate-limit to fall back to per-worker in-memo
 
 ## Next Steps
 
-> Phase 8 — staff dashboard.
+> Phase 9 — admin dashboard.
 
-1. [ ] `POST /api/messages/flag` — recipient re-submits plaintext + reason
-2. [ ] `GET /api/staff/flags` — queue (paginated, filterable by status + reason severity)
-3. [ ] `PATCH /api/staff/flags/[id]` — `{status, resolverNote?, deleteMessage?}`
-4. [ ] `/staff` protected page with queue + detail panes
-5. [ ] Mod actions: dismiss / resolve+delete / escalate-to-recipient
-6. [ ] Wire ⚠ button in MessageReader to call flag endpoint with current plaintext + reason picker
+1. [ ] `GET /api/admin/stats` — DAU, message volume, flag volume, plan distribution
+2. [ ] `GET /api/admin/users` — paginated, searchable
+3. [ ] `PATCH /api/admin/users/[id]` — toggle isStaff, isAdmin, isBanned
+4. [ ] `DELETE /api/admin/users/[id]` — hard delete
+5. [ ] `GET/POST/DELETE /api/admin/banned-ips`
+6. [ ] `GET /api/admin/audit-log` — append-only action stream
+7. [ ] `/admin` page — stats cards + tabs (users, banned IPs, audit log)
+8. [ ] All admin actions write to `auditLog`
 
 ---
 
@@ -307,3 +309,8 @@ In dev, missing Upstash env causes rate-limit to fall back to per-worker in-memo
 - **2026-06-01** — Account deletion requires passphrase re-confirmation in the request body. Server bcrypt-verifies, deletes the user row, and FK `onDelete: cascade` clears messages, reactions, mutes, flags. Session cookie cleared in the same response.
 - **2026-06-01** — Theme picker in settings persists to the server AND updates the client ThemeProvider instantly — recipient's send page (`/u/[username]`) re-renders with the new theme on next request via the server-side theme class.
 - **2026-06-01** — Rate limit on rotate-passphrase: 5 attempts per hour per `(userId, IP)` pair. Generous enough for legitimate retries on a typo, tight enough to make brute-forcing the current passphrase via this endpoint impractical.
+- **2026-06-01** — Phase 8: the flag endpoint accepts a `reportedPlaintext` field — the recipient voluntarily shares plaintext they already have. The server never derives plaintext on its own. This is the only moderation channel; un-flagged messages stay ciphertext forever.
+- **2026-06-01** — Re-flagging the same message updates the existing flag rather than creating duplicates. Allows users to correct reason / add context. Caps: `reportedPlaintext` ≤600 chars (200 plaintext × ~3 for emoji / multi-byte), `note` ≤280 chars.
+- **2026-06-01** — Staff queue ordered by severity (self_harm > doxxing > harassment > inappropriate > spam > other) via SQL CASE, then by recency. Default filter shows pending + escalated (the "open" queue).
+- **2026-06-01** — All staff actions write to `auditLog` with metadata snapshot (previous status, new status, deleteMessage flag, reason). Admin role implicitly passes `requireStaff` gates.
+- **2026-06-01** — Staff dashboard at `/staff` is a 3-pane layout (sidebar / list / detail) mirroring the inbox structure but with mod-specific actions. Lives in `app/(staff)/` route group; layout gates via `requireStaff()`.
