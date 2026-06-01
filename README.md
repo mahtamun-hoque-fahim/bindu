@@ -13,9 +13,13 @@ End-to-end encrypted anonymous inbox. Share a link, receive whispers, reply with
 - 4-pane recipient inbox with decrypt-in-browser, mood reactions, mute-by-hash, on-device safety filter, soft delete
 - UnlockGate — handles cleared IndexedDB without forcing full sign-in
 - Story export — 1080×1920 PNG, theme-matched, Web Share API or download
+- Full `/settings` — profile, theme, atomic passphrase rotation, blocked-hashes, danger zone
+- Recipient flagging — voluntarily share plaintext with staff for moderation
+- `/staff` moderation queue — severity-ordered, resolve / dismiss / escalate, audit-logged
+- `/admin` dashboard — platform stats, users CRUD, banned-IPs CRUD, audit log
 - Edge-runtime everywhere; deploys to Cloudflare Pages
 
-Phases 7–9 (settings, staff dashboard, admin dashboard) pending — see `PLANNER.md`.
+**v1 is feature-complete.** Pending: prod env setup + deploy. v2 backlog (group dots, Bindu+, multi-device) lives in `PLANNER.md`.
 
 ---
 

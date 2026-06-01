@@ -13,7 +13,7 @@
 | Purpose | End-to-end encrypted anonymous inbox — share a link, receive whispers, reply with vibes, export to story |
 | Target User | Teens and young adults; group-chat-native; want honest, anonymous feedback without the trauma of NGL/Sendit |
 | Key Value | The server literally cannot read your messages. Hashed sender IDs let you block without de-anonymizing. |
-| Status | 🟡 Phases 0–6 complete · Phases 7–9 pending |
+| Status | 🟢 v1 complete — Phases 0–9 all shipped |
 | Repo | `https://github.com/mahtamun-hoque-fahim/bindu` |
 | Live URL | `https://bindu.app` *(pending CF Pages deploy)* |
 | Prior code | `pre-pivot-archive` branch |
@@ -196,7 +196,7 @@ Full Drizzle definitions live in `lib/db/schema.ts`. Highlights:
 
 ## API Routes
 
-> All routes use `export const runtime = 'edge'`. 11 routes total.
+> All routes use `export const runtime = 'edge'`. **22 routes total.**
 
 ### Public (no auth)
 
@@ -217,15 +217,36 @@ Full Drizzle definitions live in `lib/db/schema.ts`. Highlights:
 | GET | `/api/messages` | Inbox: `?limit=50&before=ISO`. Returns ciphertext + metadata + grouped reactions + muted hash list. |
 | PATCH | `/api/messages/[id]` | `{isRead?, isFavorited?}`. Ownership-checked. |
 | DELETE | `/api/messages/[id]` | Soft delete (deletedBy='recipient'). |
+| POST | `/api/messages/flag` | `{messageId, reportedPlaintext, reason, note?}` — voluntary plaintext share. |
 | POST | `/api/reactions` | `{messageId, emoji}`. Idempotent on unique idx. |
 | DELETE | `/api/reactions` | `?messageId=&emoji=`. |
+| GET | `/api/mutes` | List of muted hashes. |
 | POST | `/api/mutes` | `{senderHash}`. Idempotent. |
 | DELETE | `/api/mutes` | `?hash=`. |
 | GET | `/api/user/encrypted-key` | Returns wrapped privKey for UnlockGate. |
+| PATCH | `/api/user/me` | `{theme?, displayName?, bio?}`. |
+| DELETE | `/api/user/me` | Account deletion. Requires `{passphrase}` body. |
+| POST | `/api/user/rotate-passphrase` | Atomic re-wrap. `{currentPassphrase, newPassphrase, newEncPrivKey}`. Rate limit 5/h per (userId, IP). |
 
-### Staff (Phase 8 — schema present, routes pending)
+### Staff (`requireStaff`)
 
-### Admin (Phase 9 — schema present, routes pending)
+| Method | Path | Description |
+|---|---|---|
+| GET | `/api/staff/flags` | Queue, severity-ordered. Filters: `?status=`, `?reason=`, `?limit=`, `?before=`. Returns counts per status. |
+| PATCH | `/api/staff/flags/[id]` | `{status, resolverNote?, deleteMessage?}`. Writes audit log. |
+
+### Admin (`requireAdmin`)
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/api/admin/stats` | 16 parallel aggregates: users (total/new24h/new7d/banned/staff/admin/plus), messages (total/24h/7d), flags, IPs, mutes, reactions. |
+| GET | `/api/admin/users` | Paginated `?filter=&search=&limit=&before=` + counts per role. |
+| PATCH | `/api/admin/users/[id]` | Toggle `isStaff`/`isAdmin`/`isBanned` + reason. Writes audit log with before-snapshot. |
+| DELETE | `/api/admin/users/[id]` | Hard delete (cascades through FKs). Self-delete blocked. |
+| GET | `/api/admin/banned-ips` | List, newest first, top 200. |
+| POST | `/api/admin/banned-ips` | `{ip, reason?}`. Idempotent on unique ip. |
+| DELETE | `/api/admin/banned-ips/[id]` | Remove ban. |
+| GET | `/api/admin/audit-log` | Append-only stream `?action=&limit=&before=`. Joined with actor username. |
 
 ---
 
@@ -258,7 +279,7 @@ In dev, missing Upstash env causes rate-limit to fall back to per-worker in-memo
 | 6 | Story export | ✅ | `8575a5d` | 1080×1920 PNG renderer, theme-matched, Web Share API + download |
 | 7 | Settings | ✅ | — | `/settings` page, theme/displayName/bio update, atomic passphrase rotation, blocked-hashes list, lock-now, account deletion |
 | 8 | Staff dashboard | ✅ | — | Recipient flag flow, `/staff` queue + detail panes, resolve/dismiss/escalate, audit-log writes |
-| 9 | Admin dashboard | ⏳ | — | Platform stats, users CRUD, banned IPs CRUD, audit log |
+| 9 | Admin dashboard | ✅ | — | `/admin` page with overview + users + IPs + audit-log tabs, full CRUD, self-delete guard, every action audit-logged |
 | v2 | Group dots | ⏳ | — | Shared-key groups, member key wrapping |
 | v2 | Bindu+ | ⏳ | — | Stripe wiring, feature gates (200→500 chars, custom emoji) |
 | v2 | X25519 migration | ⏳ | — | Replace P-256 once browser support is universal |
@@ -267,16 +288,27 @@ In dev, missing Upstash env causes rate-limit to fall back to per-worker in-memo
 
 ## Next Steps
 
-> Phase 9 — admin dashboard.
+> v1 is feature-complete. Remaining work is environmental, then v2 surfaces.
 
-1. [ ] `GET /api/admin/stats` — DAU, message volume, flag volume, plan distribution
-2. [ ] `GET /api/admin/users` — paginated, searchable
-3. [ ] `PATCH /api/admin/users/[id]` — toggle isStaff, isAdmin, isBanned
-4. [ ] `DELETE /api/admin/users/[id]` — hard delete
-5. [ ] `GET/POST/DELETE /api/admin/banned-ips`
-6. [ ] `GET /api/admin/audit-log` — append-only action stream
-7. [ ] `/admin` page — stats cards + tabs (users, banned IPs, audit log)
-8. [ ] All admin actions write to `auditLog`
+**Pre-launch checklist:**
+
+1. [ ] Provision Neon prod DB, set `DATABASE_URL` and `DATABASE_URL_UNPOOLED`
+2. [ ] Provision Upstash Redis, set `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN`
+3. [ ] Generate `SESSION_SECRET` (32+ random bytes) for prod
+4. [ ] `npm run db:push` to migrate schema
+5. [ ] Manually promote first admin via SQL: `UPDATE users SET is_admin = true WHERE username = 'fahim'`
+6. [ ] CF Pages: connect repo, set build to `npm run build:cf`, output `.open-next/assets`, add all env vars
+7. [ ] First end-to-end smoke test on staging: sign up → share link → send anon msg → read inbox → react → export story → flag → resolve via staff
+8. [ ] Set custom domain `bindu.app`
+
+**v2 backlog:**
+
+1. [ ] Group dots — shared-key inboxes for up to 8 friends. Schema present.
+2. [ ] Bindu+ — Stripe wiring, 200→500 char gate, custom emoji moods
+3. [ ] X25519 keypair migration once Safari + Firefox support is universal
+4. [ ] Multi-device — QR-scan from primary to share wrapped private key
+5. [ ] Slur localization — Bangla + English curated wordlist for safety-filter
+6. [ ] Push notifications (count only, never content)
 
 ---
 
@@ -314,3 +346,7 @@ In dev, missing Upstash env causes rate-limit to fall back to per-worker in-memo
 - **2026-06-01** — Staff queue ordered by severity (self_harm > doxxing > harassment > inappropriate > spam > other) via SQL CASE, then by recency. Default filter shows pending + escalated (the "open" queue).
 - **2026-06-01** — All staff actions write to `auditLog` with metadata snapshot (previous status, new status, deleteMessage flag, reason). Admin role implicitly passes `requireStaff` gates.
 - **2026-06-01** — Staff dashboard at `/staff` is a 3-pane layout (sidebar / list / detail) mirroring the inbox structure but with mod-specific actions. Lives in `app/(staff)/` route group; layout gates via `requireStaff()`.
+- **2026-06-01** — Phase 9: admin dashboard is tab-based (overview / users / IPs / audit log), single-pane. All 8 admin endpoints write to `auditLog` with a metadata snapshot. Stats endpoint runs 16 small aggregates in parallel via `Promise.all`.
+- **2026-06-01** — Admin self-delete is blocked via the admin route — admins must use `/settings` danger zone, which requires passphrase confirmation. Prevents accidental "I'll just delete this test user" → wrong id catastrophes.
+- **2026-06-01** — No "last admin" guard. An admin can demote themselves. DB access is the escape hatch. Adding a hard guard creates split-brain when an entire admin team needs to be replaced.
+- **2026-06-01** — User PATCH writes a `before` snapshot into audit metadata so role changes are reversible by reading the log.
