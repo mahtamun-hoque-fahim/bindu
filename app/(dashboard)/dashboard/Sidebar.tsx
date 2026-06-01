@@ -262,6 +262,40 @@ export function Sidebar({
 
       <div style={{ flex: 1 }} />
 
+      <Link
+        href="/settings"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          padding: '8px 12px',
+          borderRadius: 'var(--radius)',
+          color: 'var(--ink)',
+          textDecoration: 'none',
+          fontSize: 14,
+          marginBottom: 4,
+        }}
+      >
+        <span
+          style={{
+            width: 22,
+            height: 22,
+            borderRadius: '50%',
+            background: 'var(--bg-2)',
+            border: '1px solid var(--line)',
+            display: 'grid',
+            placeItems: 'center',
+            fontFamily: 'var(--font-mono)',
+            fontSize: 10,
+            color: 'var(--ink-2)',
+            flexShrink: 0,
+          }}
+        >
+          ⚙
+        </span>
+        <span style={{ flex: 1, textAlign: 'left' }}>Settings</span>
+      </Link>
+
       <div
         style={{
           padding: '12px 8px 8px',

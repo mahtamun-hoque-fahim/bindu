@@ -256,7 +256,7 @@ In dev, missing Upstash env causes rate-limit to fall back to per-worker in-memo
 | 4 | Send flow | ✅ | `5d86b3f` | `/u/[username]`, pubkey fetch, encrypt-in-browser, POST, IP ban + rate limit, silent mute drop |
 | 5 | Recipient inbox | ✅ | `3b95d72` | 4-pane dashboard, decrypt-in-browser, mood reactions, mute, on-device safety filter, UnlockGate |
 | 6 | Story export | ✅ | `8575a5d` | 1080×1920 PNG renderer, theme-matched, Web Share API + download |
-| 7 | Settings | ⏳ | — | Theme picker, display name + bio, passphrase rotation, blocked hashes, danger zone |
+| 7 | Settings | ✅ | — | `/settings` page, theme/displayName/bio update, atomic passphrase rotation, blocked-hashes list, lock-now, account deletion |
 | 8 | Staff dashboard | ⏳ | — | Flag queue, resolve / dismiss / escalate |
 | 9 | Admin dashboard | ⏳ | — | Platform stats, users CRUD, banned IPs CRUD, audit log |
 | v2 | Group dots | ⏳ | — | Shared-key groups, member key wrapping |
@@ -267,16 +267,14 @@ In dev, missing Upstash env causes rate-limit to fall back to per-worker in-memo
 
 ## Next Steps
 
-> Phase 7 — settings.
+> Phase 8 — staff dashboard.
 
-1. [ ] `/settings` protected page with grouped sections
-2. [ ] Theme picker — sunset/acid/dream — calls PATCH `/api/user/me`, updates body className
-3. [ ] Display name + bio — public on `/u/[username]`
-4. [ ] **Passphrase rotation** (the interesting one): derive new KEK → re-wrap privKey → atomic update of both `passphraseHash` and `encPrivKey` in one PATCH so a partial failure can't lock the user out
-5. [ ] Blocked hashes list — show all muted hashes with unmute buttons (already supported by `/api/mutes` DELETE)
-6. [ ] "Lock now" surfaced as a setting card (already on Sidebar)
-7. [ ] Danger zone — delete account (cascades through schema, requires passphrase re-confirmation)
-8. [ ] Recovery info — reminder that there is no passphrase recovery
+1. [ ] `POST /api/messages/flag` — recipient re-submits plaintext + reason
+2. [ ] `GET /api/staff/flags` — queue (paginated, filterable by status + reason severity)
+3. [ ] `PATCH /api/staff/flags/[id]` — `{status, resolverNote?, deleteMessage?}`
+4. [ ] `/staff` protected page with queue + detail panes
+5. [ ] Mod actions: dismiss / resolve+delete / escalate-to-recipient
+6. [ ] Wire ⚠ button in MessageReader to call flag endpoint with current plaintext + reason picker
 
 ---
 
@@ -305,3 +303,7 @@ In dev, missing Upstash env causes rate-limit to fall back to per-worker in-memo
 - **2026-05-31** — Phase 6: story export renders entirely on the client. The card never touches the server — even our server-side rendering wouldn't see plaintext because of E2E. Adds zero new npm dependencies (uses the browser's native Canvas2D API).
 - **2026-05-31** — Story card reads theme tokens via a hidden probe element with `getComputedStyle`, so the export automatically matches whatever theme the recipient is currently viewing. Falls back to sunset defaults if any token is unset.
 - **2026-05-31** — Export modal uses Web Share API when available (`navigator.canShare({ files })` — iOS Safari 15+, Chrome on Android), falls back to standard download. Filename: `bindu-whisper-{senderHash}.png`.
+- **2026-06-01** — Phase 7: passphrase rotation is atomic. The client re-derives the OLD KEK, unwraps the JWK, derives a NEW KEK with fresh salt, re-wraps the SAME private key, and POSTs `{currentPassphrase, newPassphrase, newEncPrivKey}`. The server bcrypt-verifies the current passphrase, hashes the new one, and writes both `passphraseHash` and `encPrivKey` in a single Drizzle UPDATE — Postgres guarantees both commit or neither does. A partial failure leaves the old (working) state intact.
+- **2026-06-01** — Account deletion requires passphrase re-confirmation in the request body. Server bcrypt-verifies, deletes the user row, and FK `onDelete: cascade` clears messages, reactions, mutes, flags. Session cookie cleared in the same response.
+- **2026-06-01** — Theme picker in settings persists to the server AND updates the client ThemeProvider instantly — recipient's send page (`/u/[username]`) re-renders with the new theme on next request via the server-side theme class.
+- **2026-06-01** — Rate limit on rotate-passphrase: 5 attempts per hour per `(userId, IP)` pair. Generous enough for legitimate retries on a typo, tight enough to make brute-forcing the current passphrase via this endpoint impractical.

@@ -1,6 +1,6 @@
 import { getDb } from '@/lib/db'
 import { mutedHashes } from '@/lib/db/schema'
-import { and, eq } from 'drizzle-orm'
+import { and, desc, eq } from 'drizzle-orm'
 import { requireSessionApi } from '@/lib/auth/server'
 
 export const runtime = 'edge'
@@ -13,6 +13,21 @@ function json(body: unknown, status = 200) {
 }
 
 type Body = { senderHash?: string }
+
+export async function GET() {
+  const session = await requireSessionApi()
+  if (session instanceof Response) return session
+
+  const db = getDb()
+  if (!db) return json({ error: 'unavailable' }, 503)
+
+  const rows = await db.query.mutedHashes.findMany({
+    where: eq(mutedHashes.userId, session.uid),
+    orderBy: [desc(mutedHashes.createdAt)],
+    columns: { senderHash: true, createdAt: true },
+  })
+  return json({ mutes: rows })
+}
 
 export async function POST(req: Request) {
   const session = await requireSessionApi()

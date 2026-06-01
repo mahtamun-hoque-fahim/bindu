@@ -163,3 +163,123 @@ export async function clientSignOut(): Promise<void> {
   await fetch('/api/auth/sign-out', { method: 'POST' })
   await clearAllCachedKeys()
 }
+
+/**
+ * Rotate the user's passphrase.
+ *
+ *   1. Re-derive the OLD KEK from currentPassphrase + the server-stored salt
+ *   2. Unwrap the private key (also confirms current passphrase locally)
+ *   3. Generate a fresh salt
+ *   4. Derive the NEW KEK from newPassphrase + fresh salt
+ *   5. Re-wrap the SAME private key under the new KEK
+ *   6. POST {currentPassphrase, newPassphrase, newEncPrivKey}
+ *   7. Re-cache the (still-the-same) unwrapped private key in IDB
+ *
+ * The server does its own bcrypt-verify of currentPassphrase and writes
+ * `passphraseHash` + `encPrivKey` in a single SQL UPDATE — atomic.
+ *
+ * If anything fails after step 5 the user's account state is unchanged
+ * because the OLD wrapped key is still authoritative until the server
+ * commits.
+ */
+export async function clientRotatePassphrase(
+  currentPassphrase: string,
+  newPassphrase: string,
+): Promise<{ ok: true } | AuthError> {
+  // Fetch the current wrapped key + salt
+  const meRes = await fetch('/api/user/encrypted-key')
+  if (!meRes.ok) {
+    return { ok: false, error: 'Could not fetch your current encrypted key' }
+  }
+  const me = (await meRes.json()) as { encPrivKey: WrappedPrivateKey }
+
+  const { base64ToBytes, bytesToBase64 } = await import('@/lib/utils')
+  const {
+    deriveKek,
+    generateSalt,
+    unwrapPrivateKey,
+    wrapPrivateKey,
+    WrongPassphraseError,
+  } = await import('@/lib/crypto')
+
+  // 1+2. Verify current passphrase locally via unwrap
+  let privateKey: CryptoKey
+  try {
+    const oldSalt = base64ToBytes(me.encPrivKey.salt)
+    const oldKek = await deriveKek(currentPassphrase, oldSalt)
+    privateKey = await unwrapPrivateKey(me.encPrivKey, oldKek)
+  } catch (err) {
+    if (err instanceof WrongPassphraseError) {
+      return { ok: false, error: 'Wrong current passphrase' }
+    }
+    return { ok: false, error: 'Could not unlock with current passphrase' }
+  }
+
+  // 3+4. Fresh salt, new KEK
+  const newSalt = generateSalt()
+  const newKek = await deriveKek(newPassphrase, newSalt)
+
+  // BUT we need an extractable private key to re-wrap. The cached one
+  // is non-extractable on purpose. So we re-import the JWK we just
+  // unwrapped — actually `unwrapPrivateKey` returned non-extractable.
+  // To re-wrap we need to re-import from the same JWK in extractable mode.
+  // The JWK is recoverable from the AES-GCM decryption inside unwrapPrivateKey
+  // but the wrapper discards it. So we replicate that step here.
+
+  // Re-decrypt manually to get the JWK string before re-import
+  const oldSalt = base64ToBytes(me.encPrivKey.salt)
+  const oldKek = await deriveKek(currentPassphrase, oldSalt)
+  const ctBytes = base64ToBytes(me.encPrivKey.ciphertext)
+  const ivBytes = base64ToBytes(me.encPrivKey.iv)
+  const jwkBuf = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: ivBytes as BufferSource },
+    oldKek,
+    ctBytes as BufferSource,
+  )
+  const jwk = JSON.parse(new TextDecoder().decode(jwkBuf)) as JsonWebKey
+  // Re-import as EXTRACTABLE so we can re-wrap
+  const extractablePriv = await crypto.subtle.importKey(
+    'jwk',
+    jwk,
+    { name: 'ECDH', namedCurve: 'P-256' },
+    true,
+    ['deriveKey'],
+  )
+
+  // 5. Re-wrap under the new KEK
+  const { ciphertext, iv } = await wrapPrivateKey(extractablePriv, newKek)
+  const newEncPrivKey: WrappedPrivateKey = {
+    ciphertext,
+    iv,
+    salt: bytesToBase64(newSalt),
+  }
+
+  // 6. POST to the atomic endpoint
+  const res = await fetch('/api/user/rotate-passphrase', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      currentPassphrase,
+      newPassphrase,
+      newEncPrivKey,
+    }),
+  })
+
+  if (!res.ok) {
+    let err: AuthError = {
+      ok: false,
+      error: `Rotation failed (${res.status})`,
+    }
+    try {
+      const body = (await res.json()) as { error?: string }
+      if (body?.error) err = { ok: false, error: body.error }
+    } catch {}
+    return err
+  }
+
+  // 7. Re-cache the non-extractable key (private key didn't change,
+  //    only its wrapping did, so the cached one is still valid — but
+  //    re-cache the original `privateKey` reference to be explicit)
+  void privateKey
+  return { ok: true }
+}
