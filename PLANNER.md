@@ -258,7 +258,7 @@ Full Drizzle definitions live in `lib/db/schema.ts`.
 | 3 | Auth | ✅ | HS256 session cookies, passphrase signup/signin, IndexedDB key cache, route guards, diceware generator |
 | 4 | Send flow | ✅ | `/u/[username]`, pubkey fetch, encrypt-in-browser, POST `/api/messages`, IP ban + rate limit, silent mute drop |
 | 5 | Recipient inbox | ✅ | 3-pane dashboard, decrypt-in-browser, mood reactions, mute by hash, on-device safety filter, UnlockGate, top-hashes sidebar |
-| 6 | Story export | ⏳ | Render message to 1080×1920 PNG via canvas |
+| 6 | Story export | ✅ | Render any message to 1080×1920 PNG via canvas, theme-matched, preview modal + Web Share API fallback to download |
 | 7 | Settings | ⏳ | Theme picker, passphrase rotation, blocked-hashes list, recovery info |
 | 8 | Staff dashboard | ⏳ | Flag queue, resolve/dismiss, escalation |
 | 9 | Admin dashboard | ⏳ | Stats, users CRUD, banned IPs CRUD, audit log |
@@ -269,14 +269,16 @@ Full Drizzle definitions live in `lib/db/schema.ts`.
 
 ## Next Steps
 
-> Phase 6 — story export.
+> Phase 7 — settings.
 
-1. [ ] `lib/canvas/story-card.ts` — render a single message to a 1080×1920 vertical canvas
-2. [ ] Embed the message's mood emoji, sender hash, recipient's theme palette
-3. [ ] Brand mark (small `● bindu` corner)
-4. [ ] Trigger from MessageReader — button → download blob
-5. [ ] Test that emoji + theme + text wrap correctly on canvas
-6. [ ] Watermark: small bindu.app URL footer
+1. [ ] `/settings` page — protected, server component
+2. [ ] Theme picker — sunset/acid/dream, persist via PATCH /api/user/me, also update body className
+3. [ ] Display name + bio fields (optional, public on /u/[username])
+4. [ ] Passphrase rotation — re-derive KEK with new passphrase, re-wrap privKey, update via PATCH /api/user/me
+5. [ ] Blocked hashes list — show all mutes with unmute buttons
+6. [ ] "Lock now" surfaced as a setting (already in sidebar — link it from settings too)
+7. [ ] Danger zone: delete account (cascades through schema)
+8. [ ] Recovery info — "your passphrase is your only key" reminder + button to download recovery sheet
 
 ---
 
@@ -302,3 +304,6 @@ Full Drizzle definitions live in `lib/db/schema.ts`.
 - **2026-05-31** — UnlockGate: when session cookie is valid but IndexedDB is empty (data cleared / private mode / new device), the dashboard prompts for passphrase and re-unwraps without forcing a full sign-in.
 - **2026-05-31** — Inbox UI is 4-column at ≥1100px (sidebar / list / reader / right panel), collapses to 3-column ≤1100px (drops right panel), and stacks at ≤800px. Right panel duplicates the share link + shows mood-of-week + top sender hashes.
 - **2026-05-31** — All inbox PATCH/DELETE operations are optimistic — UI updates first, request fires-and-forgets. Reconciliation on errors is deferred to v2 (network-blip handling).
+- **2026-05-31** — Phase 6: story export renders entirely on the client. The card never touches the server — even our server-side rendering wouldn't see plaintext because of E2E. Adds zero new npm dependencies (uses the browser's native Canvas2D API).
+- **2026-05-31** — Story card reads theme tokens via a hidden probe element with `getComputedStyle`, so the export automatically matches whatever theme the recipient is currently viewing. Falls back to sunset defaults if any token is unset.
+- **2026-05-31** — Export modal uses Web Share API when available (`navigator.canShare({ files })` — iOS Safari 15+, Chrome on Android), falls back to standard download. Filename: `bindu-whisper-{senderHash}.png`.

@@ -288,6 +288,8 @@ export function Inbox({ session }: Props) {
       />
       <MessageReader
         message={selected}
+        username={session.username}
+        theme={session.theme}
         onFavorite={() => selected && toggleFavorite(selected.id)}
         onDelete={() => selected && deleteMessage(selected.id)}
         onMute={() =>

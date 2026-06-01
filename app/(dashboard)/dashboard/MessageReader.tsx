@@ -4,10 +4,14 @@ import { useState } from 'react'
 import { timeAgo } from '@/lib/utils'
 import { labelFor } from '@/lib/safety-filter'
 import { MOODS, type InboxMessage } from './types'
+import { StoryExportModal } from './StoryExportModal'
+import type { Theme } from '@/components/providers/ThemeProvider'
 
 type Props = {
   message: InboxMessage | null
   isMuted: boolean
+  username: string
+  theme: Theme
   onFavorite: () => void
   onDelete: () => void
   onMute: () => void
@@ -19,6 +23,8 @@ type Props = {
 export function MessageReader({
   message,
   isMuted,
+  username,
+  theme,
   onFavorite,
   onDelete,
   onMute,
@@ -28,6 +34,7 @@ export function MessageReader({
 }: Props) {
   const [revealed, setRevealed] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
 
   if (!message) {
     return (
@@ -134,6 +141,12 @@ export function MessageReader({
           icon="⊘"
           onClick={isMuted ? onUnmute : onMute}
           active={isMuted}
+        />
+        <ActionButton
+          label="Export to story"
+          icon="↗"
+          onClick={() => setExportOpen(true)}
+          disabled={message.plaintext === null}
         />
         <ActionButton
           label="Delete"
@@ -275,6 +288,18 @@ export function MessageReader({
           </>
         )}
       </div>
+
+      {message.plaintext !== null && (
+        <StoryExportModal
+          open={exportOpen}
+          onClose={() => setExportOpen(false)}
+          plaintext={message.plaintext}
+          mood={message.mood}
+          senderHash={message.senderHash}
+          username={username}
+          theme={theme}
+        />
+      )}
     </div>
   )
 }
@@ -287,18 +312,21 @@ function ActionButton({
   onClick,
   active,
   danger,
+  disabled,
 }: {
   label: string
   icon: string
   onClick: () => void
   active?: boolean
   danger?: boolean
+  disabled?: boolean
 }) {
   return (
     <button
       onClick={onClick}
       title={label}
       aria-label={label}
+      disabled={disabled}
       style={{
         width: 36,
         height: 36,
@@ -308,7 +336,8 @@ function ActionButton({
         }`,
         background: active ? 'var(--accent)' : 'transparent',
         color: danger ? '#C04A2B' : active ? '#fff' : 'var(--ink)',
-        cursor: 'pointer',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        opacity: disabled ? 0.4 : 1,
         fontSize: 16,
       }}
     >
